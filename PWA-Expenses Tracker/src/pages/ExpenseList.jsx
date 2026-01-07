@@ -3,10 +3,11 @@ import Header from '../components/layout/Header'
 import FilterBar from '../components/expenses/FilterBar'
 import ExpenseCard from '../components/expenses/ExpenseCard'
 import ExpenseForm from '../components/forms/ExpenseForm'
+import ReasonModal from '../components/forms/ReasonModal'
 import { useProjects, useCategories, useExpenses, useDeleteExpense, useUpdateExpense } from '../hooks/useSupabase'
 import { getCurrentMonth } from '../utils/formatters'
 import { exportToExcel, exportToPDF } from '../utils/exportHelpers'
-import { X } from 'lucide-react'
+import { X, CheckCircle } from 'lucide-react'
 
 const ExpenseList = () => {
     const [selectedProject, setSelectedProject] = useState('all')
@@ -14,6 +15,12 @@ const ExpenseList = () => {
     const [selectedMonth, setSelectedMonth] = useState('')
     const [searchText, setSearchText] = useState('')
     const [editingExpense, setEditingExpense] = useState(null)
+
+    // States for reason modal
+    const [pendingUpdate, setPendingUpdate] = useState(null) // { id, formData, description }
+    const [pendingDelete, setPendingDelete] = useState(null) // { id, description }
+    const [showSuccessToast, setShowSuccessToast] = useState(false)
+    const [successMessage, setSuccessMessage] = useState('')
 
     const { projects } = useProjects()
     const { categories } = useCategories()
@@ -30,19 +37,55 @@ const ExpenseList = () => {
         setEditingExpense(expense)
     }
 
-    const handleDelete = async (id) => {
-        if (window.confirm('Bạn có chắc muốn xóa chi phí này?')) {
-            await deleteExpense(id)
+    // Step 1: User clicks delete -> show reason modal
+    const handleDelete = (id) => {
+        const expense = expenses.find(e => e.id === id)
+        setPendingDelete({
+            id,
+            description: expense?.description || 'Chi phí'
+        })
+    }
+
+    // Step 2: User provides reason and confirms delete
+    const confirmDelete = async (reason) => {
+        if (pendingDelete) {
+            await deleteExpense(pendingDelete.id, reason)
+            setPendingDelete(null)
             refetch()
+            showSuccess('Đã xóa và ghi lại nhật ký thay đổi')
         }
     }
 
+    // Step 1: User submits edit form -> store pending data and show reason modal
     const handleUpdate = async (formData) => {
         if (editingExpense) {
-            await updateExpense(editingExpense.id, formData)
-            setEditingExpense(null)
-            refetch()
+            setPendingUpdate({
+                id: editingExpense.id,
+                formData,
+                description: editingExpense.description || 'Chi phí'
+            })
+            setEditingExpense(null) // Close edit form
         }
+    }
+
+    // Step 2: User provides reason and confirms update
+    const confirmUpdate = async (reason) => {
+        if (pendingUpdate) {
+            await updateExpense(pendingUpdate.id, pendingUpdate.formData, reason)
+            setPendingUpdate(null)
+            refetch()
+            showSuccess('Đã cập nhật và ghi lại nhật ký thay đổi')
+        }
+    }
+
+    // Show success toast
+    const showSuccess = (message) => {
+        setSuccessMessage(message)
+        setShowSuccessToast(true)
+        setTimeout(() => {
+            setShowSuccessToast(false)
+            setSuccessMessage('')
+        }, 2000)
     }
 
     const clearFilters = () => {
@@ -54,7 +97,6 @@ const ExpenseList = () => {
 
     const handleDownload = (expense) => {
         if (expense.document_url) {
-            // Open document in new tab or trigger download
             const link = document.createElement('a')
             link.href = expense.document_url
             link.target = '_blank'
@@ -137,25 +179,58 @@ const ExpenseList = () => {
 
             {/* Edit Modal */}
             {editingExpense && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
-                    <div className="bg-white w-full max-w-lg rounded-t-3xl p-5 pb-8 animate-slide-up max-h-[90vh] overflow-y-auto">
-                        <div className="flex items-center justify-between mb-5">
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+                    <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl my-8 max-h-[calc(100vh-4rem)]">
+                        {/* Header - Fixed */}
+                        <div className="flex items-center justify-between p-5 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl z-10">
                             <h2 className="text-lg font-bold text-gray-800">Sửa chi phí</h2>
                             <button
                                 onClick={() => setEditingExpense(null)}
-                                className="p-2 hover:bg-gray-100 rounded-full"
+                                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                             >
                                 <X size={20} />
                             </button>
                         </div>
-                        <ExpenseForm
-                            projects={projects}
-                            categories={categories}
-                            initialData={editingExpense}
-                            onSubmit={handleUpdate}
-                            onCancel={() => setEditingExpense(null)}
-                            loading={updating}
-                        />
+
+                        {/* Scrollable Content */}
+                        <div className="p-5 pb-8 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 12rem)' }}>
+                            <ExpenseForm
+                                projects={projects}
+                                categories={categories}
+                                initialData={editingExpense}
+                                onSubmit={handleUpdate}
+                                onCancel={() => setEditingExpense(null)}
+                                loading={updating}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Reason Modal for Update */}
+            <ReasonModal
+                isOpen={!!pendingUpdate}
+                onClose={() => setPendingUpdate(null)}
+                onConfirm={confirmUpdate}
+                type="edit"
+                expenseDescription={pendingUpdate?.description}
+            />
+
+            {/* Reason Modal for Delete */}
+            <ReasonModal
+                isOpen={!!pendingDelete}
+                onClose={() => setPendingDelete(null)}
+                onConfirm={confirmDelete}
+                type="delete"
+                expenseDescription={pendingDelete?.description}
+            />
+
+            {/* Success Toast */}
+            {showSuccessToast && (
+                <div className="fixed inset-0 bg-black/30 z-[70] flex items-center justify-center">
+                    <div className="bg-white rounded-2xl p-6 shadow-xl flex flex-col items-center animate-fade-in">
+                        <CheckCircle size={48} className="text-green-500 mb-3" />
+                        <p className="text-lg font-semibold text-gray-800">{successMessage}</p>
                     </div>
                 </div>
             )}

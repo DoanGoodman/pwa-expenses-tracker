@@ -342,7 +342,7 @@ export const useAddExpense = () => {
 export const useUpdateExpense = () => {
     const [loading, setLoading] = useState(false)
 
-    const updateExpense = async (id, expenseData) => {
+    const updateExpense = async (id, expenseData, reason = '') => {
         setLoading(true)
 
         if (isDemoMode()) {
@@ -352,7 +352,7 @@ export const useUpdateExpense = () => {
         }
 
         try {
-            // Map form data to database columns
+            // Map form data to database columns, include change reason
             const updateData = {
                 date: expenseData.expense_date || expenseData.date,
                 project_id: parseInt(expenseData.project_id),
@@ -361,7 +361,8 @@ export const useUpdateExpense = () => {
                 description: expenseData.description || '',
                 quantity: expenseData.quantity || 1,
                 unit_price: expenseData.unit_price || 0,
-                unit: expenseData.unit || null
+                unit: expenseData.unit || null,
+                last_change_reason: reason || 'Cập nhật chi phí'
             }
 
             const { error } = await supabase
@@ -388,7 +389,7 @@ export const useUpdateExpense = () => {
 export const useDeleteExpense = () => {
     const [loading, setLoading] = useState(false)
 
-    const deleteExpense = async (id) => {
+    const deleteExpense = async (id, reason = '') => {
         setLoading(true)
 
         if (isDemoMode()) {
@@ -398,6 +399,15 @@ export const useDeleteExpense = () => {
         }
 
         try {
+            // Step 1: Update last_change_reason BEFORE deleting (for trigger/audit)
+            if (reason) {
+                await supabase
+                    .from('expenses')
+                    .update({ last_change_reason: reason })
+                    .eq('id', id)
+            }
+
+            // Step 2: Perform the actual delete
             const { error } = await supabase
                 .from('expenses')
                 .delete()
