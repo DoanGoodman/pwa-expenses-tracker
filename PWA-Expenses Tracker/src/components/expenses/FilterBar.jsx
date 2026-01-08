@@ -1,7 +1,7 @@
 import { Search, X } from 'lucide-react'
 import { useMemo } from 'react'
 
-// Tạo danh sách tháng gần đây (12 tháng gần nhất)
+// Tạo danh sách tháng gần đây (12 tháng gần nhất) với label ngắn gọn
 const generateMonthOptions = () => {
     const months = []
     const now = new Date()
@@ -11,7 +11,9 @@ const generateMonthOptions = () => {
         const year = date.getFullYear()
         const month = String(date.getMonth() + 1).padStart(2, '0')
         const value = `${year}-${month}`
-        const label = `T${date.getMonth() + 1}/${year}`
+        // Shorter label: MM/YY format (e.g., 12/25 instead of T12/2025)
+        const shortYear = String(year).slice(-2)
+        const label = `${date.getMonth() + 1}/${shortYear}`
         months.push({ value, label })
     }
 
@@ -76,13 +78,13 @@ const FilterBar = ({
                 )}
             </div>
 
-            {/* Filter Dropdowns - Customized widths */}
-            <div className="flex gap-2 overflow-hidden">
-                {/* Project Filter - Wider (Priority) */}
+            {/* Filter Dropdowns - Grid: Project(flex) | Category(125px) | Month(80px) */}
+            <div className="grid grid-cols-[1fr_125px_80px] gap-1.5">
+                {/* Project Filter - Takes remaining space */}
                 <select
                     value={selectedProject}
                     onChange={(e) => onProjectChange(e.target.value)}
-                    className="filter-dropdown flex-[1.5] min-w-0"
+                    className="filter-dropdown min-w-0 truncate"
                 >
                     <option value="all">Dự án</option>
                     {projects.map(project => (
@@ -92,11 +94,11 @@ const FilterBar = ({
                     ))}
                 </select>
 
-                {/* Category Filter - Standard flexible */}
+                {/* Category Filter - Fixed 105px for "MMTB, CCDC" */}
                 <select
                     value={selectedCategory}
                     onChange={(e) => onCategoryChange(e.target.value)}
-                    className="filter-dropdown flex-1 min-w-0"
+                    className="filter-dropdown text-xs px-1"
                 >
                     <option value="all">Danh mục</option>
                     {sortedCategories.map(category => (
@@ -106,11 +108,11 @@ const FilterBar = ({
                     ))}
                 </select>
 
-                {/* Month Filter - Compact width for T12/2025 */}
+                {/* Month Filter - Fixed 60px for "12/25" */}
                 <select
                     value={selectedMonth}
                     onChange={(e) => onMonthChange(e.target.value)}
-                    className="filter-dropdown w-[80px] flex-shrink-0 px-1 text-xs"
+                    className="filter-dropdown text-xs px-1"
                 >
                     <option value="">Tháng</option>
                     {monthOptions.map(option => (
