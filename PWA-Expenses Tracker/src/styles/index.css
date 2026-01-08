@@ -320,6 +320,23 @@ button:focus {
     box-sizing: border-box;
 }
 
+/* Fix date input overflow on iOS Safari */
+input[type="date"].input-field {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+/* iOS Safari specific fixes */
+@supports (-webkit-touch-callout: none) {
+    input[type="date"].input-field {
+        min-height: 48px;
+    }
+}
+
 /* ===== ADD PROJECT BUTTON ===== */
 .add-project-btn {
     flex-shrink: 0;

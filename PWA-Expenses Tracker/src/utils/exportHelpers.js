@@ -16,8 +16,8 @@ const formatDataForExport = (expenses) => {
     }))
 }
 
-// Export to Excel
-export const exportToExcel = (expenses, fileName = 'Danh_sach_chi_phi') => {
+// Export to Excel with iOS Safari support
+export const exportToExcel = async (expenses, fileName = 'Danh_sach_chi_phi') => {
     try {
         const data = formatDataForExport(expenses)
         const worksheet = XLSX.utils.json_to_sheet(data)
@@ -37,9 +37,47 @@ export const exportToExcel = (expenses, fileName = 'Danh_sach_chi_phi') => {
 
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Chi phi')
 
-        // Use writeFile for better mobile compatibility
-        // This method handles the download process internally
-        XLSX.writeFile(workbook, `${fileName}.xlsx`)
+        // Generate file as base64
+        const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
+        const blob = new Blob([excelBuffer], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        })
+
+        // Check if Web Share API is available (works well on iOS)
+        if (navigator.share && navigator.canShare) {
+            const file = new File([blob], `${fileName}.xlsx`, {
+                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            })
+
+            if (navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    files: [file],
+                    title: 'Xuất danh sách chi phí',
+                })
+                return true
+            }
+        }
+
+        // Fallback: Create download link
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `${fileName}.xlsx`
+
+        // For iOS Safari, we need to open in same window
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+        if (isIOS) {
+            // Open blob URL in new tab for iOS
+            window.open(url, '_blank')
+            alert('File Excel đã mở. Nhấn giữ và chọn "Tải về" hoặc "Mở trong Numbers" để lưu.')
+        } else {
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+        }
+
+        // Cleanup after delay
+        setTimeout(() => URL.revokeObjectURL(url), 5000)
 
         return true
     } catch (error) {
