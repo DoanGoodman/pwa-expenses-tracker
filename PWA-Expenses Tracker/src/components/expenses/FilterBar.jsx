@@ -78,49 +78,73 @@ const FilterBar = ({
                 )}
             </div>
 
-            {/* Filter Dropdowns - Grid: Project(flex) | Category(125px) | Month(80px) */}
+            {/* Filter Dropdowns - Grid with wrapper divs for iOS compatibility */}
             <div className="grid grid-cols-[1fr_125px_80px] gap-1.5">
                 {/* Project Filter - Takes remaining space */}
-                <select
-                    value={selectedProject}
-                    onChange={(e) => onProjectChange(e.target.value)}
-                    className="filter-dropdown min-w-0 truncate"
-                >
-                    <option value="all">Dự án</option>
-                    {projects.map(project => (
-                        <option key={project.id} value={project.id}>
-                            {project.name}
-                        </option>
-                    ))}
-                </select>
+                <div className="relative overflow-hidden rounded-lg border border-gray-200 bg-white">
+                    <select
+                        value={selectedProject}
+                        onChange={(e) => onProjectChange(e.target.value)}
+                        className="w-full h-full py-2 pl-2 pr-6 text-sm bg-transparent border-none outline-none appearance-none cursor-pointer"
+                        style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
+                    >
+                        <option value="all">Dự án</option>
+                        {projects.map(project => (
+                            <option key={project.id} value={project.id}>
+                                {project.name}
+                            </option>
+                        ))}
+                    </select>
+                    <div className="absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.5">
+                            <path d="m6 9 6 6 6-6" />
+                        </svg>
+                    </div>
+                </div>
 
-                {/* Category Filter - Fixed 105px for "MMTB, CCDC" */}
-                <select
-                    value={selectedCategory}
-                    onChange={(e) => onCategoryChange(e.target.value)}
-                    className="filter-dropdown text-xs px-1"
-                >
-                    <option value="all">Danh mục</option>
-                    {sortedCategories.map(category => (
-                        <option key={category.id} value={category.id}>
-                            {category.name}
-                        </option>
-                    ))}
-                </select>
+                {/* Category Filter */}
+                <div className="relative overflow-hidden rounded-lg border border-gray-200 bg-white">
+                    <select
+                        value={selectedCategory}
+                        onChange={(e) => onCategoryChange(e.target.value)}
+                        className="w-full h-full py-2 pl-2 pr-6 text-xs bg-transparent border-none outline-none appearance-none cursor-pointer"
+                        style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
+                    >
+                        <option value="all">Danh mục</option>
+                        {sortedCategories.map(category => (
+                            <option key={category.id} value={category.id}>
+                                {category.name}
+                            </option>
+                        ))}
+                    </select>
+                    <div className="absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.5">
+                            <path d="m6 9 6 6 6-6" />
+                        </svg>
+                    </div>
+                </div>
 
-                {/* Month Filter - Fixed 60px for "12/25" */}
-                <select
-                    value={selectedMonth}
-                    onChange={(e) => onMonthChange(e.target.value)}
-                    className="filter-dropdown text-xs px-1"
-                >
-                    <option value="">Tháng</option>
-                    {monthOptions.map(option => (
-                        <option key={option.value} value={option.value}>
-                            {option.label}
-                        </option>
-                    ))}
-                </select>
+                {/* Month Filter */}
+                <div className="relative overflow-hidden rounded-lg border border-gray-200 bg-white">
+                    <select
+                        value={selectedMonth}
+                        onChange={(e) => onMonthChange(e.target.value)}
+                        className="w-full h-full py-2 pl-2 pr-6 text-xs bg-transparent border-none outline-none appearance-none cursor-pointer"
+                        style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
+                    >
+                        <option value="">Tháng</option>
+                        {monthOptions.map(option => (
+                            <option key={option.value} value={option.value}>
+                                {option.label}
+                            </option>
+                        ))}
+                    </select>
+                    <div className="absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.5">
+                            <path d="m6 9 6 6 6-6" />
+                        </svg>
+                    </div>
+                </div>
             </div>
         </div>
     )
