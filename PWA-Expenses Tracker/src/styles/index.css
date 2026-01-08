@@ -313,6 +313,13 @@ button:focus {
     box-shadow: 0 0 0 3px rgba(0, 169, 157, 0.15) !important;
 }
 
+/* Ensure all form inputs respect container width */
+.input-field,
+.select-field {
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
 /* ===== ADD PROJECT BUTTON ===== */
 .add-project-btn {
     flex-shrink: 0;

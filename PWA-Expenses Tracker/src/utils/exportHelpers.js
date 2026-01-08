@@ -37,27 +37,14 @@ export const exportToExcel = (expenses, fileName = 'Danh_sach_chi_phi') => {
 
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Chi phi')
 
-        // Generate buffer
-        const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
-
-        // Create Blob and Save
-        const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-
-        // Create download link manually to ensure filename is correct
-        const url = window.URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = url
-        link.download = `${fileName}.xlsx`
-        document.body.appendChild(link)
-        link.click()
-
-        // Cleanup
-        document.body.removeChild(link)
-        window.URL.revokeObjectURL(url)
+        // Use writeFile for better mobile compatibility
+        // This method handles the download process internally
+        XLSX.writeFile(workbook, `${fileName}.xlsx`)
 
         return true
     } catch (error) {
         console.error('Export Excel Error:', error)
+        alert('Lỗi xuất Excel: ' + error.message)
         return false
     }
 }

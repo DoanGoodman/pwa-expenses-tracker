@@ -7,6 +7,14 @@ const getCurrentUserId = async () => {
     return user?.id || null
 }
 
+// Helper function to get the last day of a month
+const getLastDayOfMonth = (yearMonth) => {
+    const [year, month] = yearMonth.split('-').map(Number)
+    // Create date for next month's first day, then subtract 1 day
+    const lastDay = new Date(year, month, 0).getDate()
+    return lastDay
+}
+
 // Hook để lấy danh sách projects (filtered by user_id)
 export const useProjects = () => {
     const [projects, setProjects] = useState([])
@@ -231,13 +239,15 @@ export const useExpenses = (filters = {}) => {
             }
 
             if (filters.month) {
+                const lastDay = getLastDayOfMonth(filters.month)
                 query = query.gte('date', `${filters.month}-01T00:00:00`)
-                query = query.lte('date', `${filters.month}-31T23:59:59`)
+                query = query.lte('date', `${filters.month}-${String(lastDay).padStart(2, '0')}T23:59:59`)
             }
 
             if (filters.startMonth && filters.endMonth) {
+                const lastDay = getLastDayOfMonth(filters.endMonth)
                 query = query.gte('date', `${filters.startMonth}-01T00:00:00`)
-                query = query.lte('date', `${filters.endMonth}-31T23:59:59`)
+                query = query.lte('date', `${filters.endMonth}-${String(lastDay).padStart(2, '0')}T23:59:59`)
             }
 
             if (filters.search) {
@@ -517,8 +527,9 @@ export const useDashboardStats = (startMonth, endMonth, projectId = null) => {
                     .eq('user_id', userId)
 
                 if (startMonth && endMonth) {
+                    const lastDay = getLastDayOfMonth(endMonth)
                     query = query.gte('date', `${startMonth}-01T00:00:00`)
-                    query = query.lte('date', `${endMonth}-31T23:59:59`)
+                    query = query.lte('date', `${endMonth}-${String(lastDay).padStart(2, '0')}T23:59:59`)
                 }
 
                 if (projectId) {
