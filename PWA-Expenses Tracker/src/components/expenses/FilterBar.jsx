@@ -76,9 +76,9 @@ const FilterBar = ({
                 )}
             </div>
 
-            {/* Filter Dropdowns - Project wider, Month smaller */}
+            {/* Filter Dropdowns - All flexible */}
             <div className="flex gap-2">
-                {/* Project Filter - Auto width */}
+                {/* Project Filter */}
                 <select
                     value={selectedProject}
                     onChange={(e) => onProjectChange(e.target.value)}
@@ -92,11 +92,11 @@ const FilterBar = ({
                     ))}
                 </select>
 
-                {/* Category Filter - Fixed width enough for "Thiết bị, dụng cụ" */}
+                {/* Category Filter - Flexible */}
                 <select
                     value={selectedCategory}
                     onChange={(e) => onCategoryChange(e.target.value)}
-                    className="filter-dropdown w-[140px] flex-shrink-0"
+                    className="filter-dropdown flex-1 min-w-0"
                 >
                     <option value="all">Danh mục</option>
                     {sortedCategories.map(category => (
@@ -106,11 +106,11 @@ const FilterBar = ({
                     ))}
                 </select>
 
-                {/* Month Filter - Smaller fixed width */}
+                {/* Month Filter - Flexible */}
                 <select
                     value={selectedMonth}
                     onChange={(e) => onMonthChange(e.target.value)}
-                    className="filter-dropdown w-[115px] flex-shrink-0"
+                    className="filter-dropdown flex-1 min-w-0"
                 >
                     <option value="">Tháng</option>
                     {monthOptions.map(option => (

@@ -208,9 +208,9 @@ const ExpenseForm = ({
                         />
                     </div>
 
-                    {/* Quantity, Unit (ĐVT), and Unit Price */}
-                    <div className="grid grid-cols-3 gap-3">
-                        <div>
+                    {/* Quantity and Unit (ĐVT) - Same row */}
+                    <div className="flex gap-3">
+                        <div className="flex-1">
                             <label className="block text-sm font-medium text-gray-700 mb-1.5">
                                 Khối lượng
                             </label>
@@ -224,7 +224,7 @@ const ExpenseForm = ({
                                 placeholder="1"
                             />
                         </div>
-                        <div>
+                        <div className="w-24 flex-shrink-0">
                             <label className="block text-sm font-medium text-gray-700 mb-1.5">
                                 ĐVT
                             </label>
@@ -240,7 +240,7 @@ const ExpenseForm = ({
                                 ))}
                             </select>
                         </div>
-                        <div>
+                        <div className="flex-1">
                             <label className="block text-sm font-medium text-gray-700 mb-1.5">
                                 Đơn giá (VND)
                             </label>

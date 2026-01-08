@@ -41,21 +41,16 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 20px;
-    /* Tăng padding ngang */
+    padding: 12px 12px;
     margin-bottom: 16px;
     position: sticky;
-    /* Sticky để luôn bám trên cùng khi cuộn */
     top: 0;
     z-index: 40;
     background-color: white;
     box-shadow: var(--shadow-soft);
-    /* Thêm bóng đổ mềm */
-    margin-left: -1.25rem;
-    /* Bù trừ cho padding của page-container */
-    margin-right: -1.25rem;
+    margin-left: -0.75rem;
+    margin-right: -0.75rem;
     margin-top: -1rem;
-    /* Bù trừ cho padding top của page-container */
 }
 
 .header-title {
@@ -470,7 +465,7 @@ input[type="month"].filter-dropdown::-webkit-calendar-picker-indicator {
 
 /* ===== PAGE CONTAINER ===== */
 .page-container {
-    padding: 1rem 1.25rem;
+    padding: 1rem 0.75rem;
     padding-bottom: calc(5rem + env(safe-area-inset-bottom));
     min-height: 100%;
     max-width: 480px;
