@@ -22,23 +22,23 @@ const ExpenseCard = ({ expense, onEdit, onDelete, onDownload }) => {
             {/* Dòng 2: Info bên trái, Actions bên phải */}
             <div className="flex items-center justify-between">
                 {/* Info icons */}
-                <div className="flex items-center gap-2 text-gray-500 text-xs flex-wrap">
-                    <span className="flex items-center gap-1">
+                <div className="flex items-center gap-2 text-gray-500 text-xs flex-1 min-w-0 pr-1">
+                    <span className="flex items-center gap-1 min-w-0 shrink">
                         <FolderOpen size={14} className="flex-shrink-0" />
-                        <span className="max-w-[60px] truncate">{project?.name || 'N/A'}</span>
+                        <span className="truncate max-w-[80px] sm:max-w-[120px]">{project?.name || 'N/A'}</span>
                     </span>
-                    <span className="flex items-center gap-1">
+                    <span className="flex items-center gap-1 min-w-0 shrink">
                         <CategoryIconComponent categoryName={category?.name} size={14} />
-                        <span className={`font-medium max-w-[55px] truncate ${categoryColor}`}>{category?.name || 'N/A'}</span>
+                        <span className={`font-medium truncate max-w-[80px] sm:max-w-[120px] ${categoryColor}`}>{category?.name || 'N/A'}</span>
                     </span>
-                    <span className="flex items-center gap-1">
+                    <span className="flex items-center gap-1 flex-shrink-0">
                         <Calendar size={14} className="flex-shrink-0" />
                         <span className="whitespace-nowrap">{formatDateVN(displayDate)}</span>
                     </span>
                 </div>
 
-                {/* Action buttons với gap-x-4 */}
-                <div className="flex items-center gap-x-3">
+                {/* Action buttons - Compact gap */}
+                <div className="flex items-center gap-0.5 shrink-0">
                     {document_url && (
                         <button
                             onClick={() => onDownload && onDownload(expense)}
@@ -46,7 +46,7 @@ const ExpenseCard = ({ expense, onEdit, onDelete, onDownload }) => {
                             aria-label="Tải tài liệu"
                             title="Tải hóa đơn"
                         >
-                            <Download size={18} />
+                            <Download size={16} />
                         </button>
                     )}
                     <button
@@ -54,14 +54,14 @@ const ExpenseCard = ({ expense, onEdit, onDelete, onDownload }) => {
                         className="p-1.5 text-primary hover:bg-primary-light rounded-lg transition-colors"
                         aria-label="Sửa"
                     >
-                        <Pencil size={18} />
+                        <Pencil size={16} />
                     </button>
                     <button
                         onClick={() => onDelete(expense.id)}
                         className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                         aria-label="Xóa"
                     >
-                        <Trash2 size={18} />
+                        <Trash2 size={16} />
                     </button>
                 </div>
             </div>

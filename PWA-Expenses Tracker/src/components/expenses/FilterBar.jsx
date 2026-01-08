@@ -76,13 +76,13 @@ const FilterBar = ({
                 )}
             </div>
 
-            {/* Filter Dropdowns - All flexible */}
+            {/* Filter Dropdowns - Customized widths */}
             <div className="flex gap-2">
-                {/* Project Filter */}
+                {/* Project Filter - Wider (Priority) */}
                 <select
                     value={selectedProject}
                     onChange={(e) => onProjectChange(e.target.value)}
-                    className="filter-dropdown flex-1 min-w-0"
+                    className="filter-dropdown flex-[1.5] min-w-0"
                 >
                     <option value="all">Dự án</option>
                     {projects.map(project => (
@@ -92,7 +92,7 @@ const FilterBar = ({
                     ))}
                 </select>
 
-                {/* Category Filter - Flexible */}
+                {/* Category Filter - Standard flexible */}
                 <select
                     value={selectedCategory}
                     onChange={(e) => onCategoryChange(e.target.value)}
@@ -106,11 +106,11 @@ const FilterBar = ({
                     ))}
                 </select>
 
-                {/* Month Filter - Flexible */}
+                {/* Month Filter - Fixed narrow width (just enough for T12/2025) */}
                 <select
                     value={selectedMonth}
                     onChange={(e) => onMonthChange(e.target.value)}
-                    className="filter-dropdown flex-1 min-w-0"
+                    className="filter-dropdown w-[90px] flex-shrink-0 px-1 text-center"
                 >
                     <option value="">Tháng</option>
                     {monthOptions.map(option => (
