@@ -77,7 +77,7 @@ const FilterBar = ({
             </div>
 
             {/* Filter Dropdowns - Customized widths */}
-            <div className="flex gap-2">
+            <div className="flex gap-2 overflow-hidden">
                 {/* Project Filter - Wider (Priority) */}
                 <select
                     value={selectedProject}
@@ -106,11 +106,11 @@ const FilterBar = ({
                     ))}
                 </select>
 
-                {/* Month Filter - Fixed narrow width (just enough for T12/2025) */}
+                {/* Month Filter - Compact width for T12/2025 */}
                 <select
                     value={selectedMonth}
                     onChange={(e) => onMonthChange(e.target.value)}
-                    className="filter-dropdown w-[90px] flex-shrink-0 px-1 text-center"
+                    className="filter-dropdown w-[80px] flex-shrink-0 px-1 text-xs"
                 >
                     <option value="">Tháng</option>
                     {monthOptions.map(option => (

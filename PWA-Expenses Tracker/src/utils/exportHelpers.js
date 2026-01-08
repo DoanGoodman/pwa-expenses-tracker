@@ -3,16 +3,26 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { formatVND, formatDateVN } from './formatters'
 
-// Helper: Format data for export
+// Helper: Format data for export - Matches Supabase expenses table structure
+// Data sorted by date (most recent first)
 const formatDataForExport = (expenses) => {
-    return expenses.map((item, index) => ({
-        STT: index + 1,
+    // Sort by date descending (newest first)
+    const sortedExpenses = [...expenses].sort((a, b) => {
+        const dateA = new Date(a.date || a.expense_date)
+        const dateB = new Date(b.date || b.expense_date)
+        return dateB - dateA
+    })
+
+    return sortedExpenses.map((item, index) => ({
+        'STT': index + 1,
         'Ngày': formatDateVN(item.date || item.expense_date),
-        'Nội dung': item.description,
         'Dự án': item.project?.name || 'N/A',
         'Hạng mục': item.category?.name || 'N/A',
-        'Số tiền': item.amount,
-        'Ghi chú': item.note || ''
+        'Nội dung': item.description || '',
+        'ĐVT': item.unit || '',
+        'Khối lượng': item.quantity || 1,
+        'Đơn giá': item.unit_price || 0,
+        'Thành tiền': item.amount || 0
     }))
 }
 
@@ -23,15 +33,17 @@ export const exportToExcel = async (expenses, fileName = 'Danh_sach_chi_phi') =>
         const worksheet = XLSX.utils.json_to_sheet(data)
         const workbook = XLSX.utils.book_new()
 
-        // Adjust column widths
+        // Adjust column widths for new structure
         const wscols = [
-            { wch: 5 },  // STT
-            { wch: 12 }, // Ngày
-            { wch: 30 }, // Nội dung
-            { wch: 20 }, // Dự án
-            { wch: 15 }, // Hạng mục
-            { wch: 15 }, // Số tiền
-            { wch: 20 }  // Ghi chú
+            { wch: 5 },   // STT
+            { wch: 12 },  // Ngày
+            { wch: 20 },  // Dự án
+            { wch: 15 },  // Hạng mục
+            { wch: 30 },  // Nội dung
+            { wch: 8 },   // ĐVT
+            { wch: 12 },  // Khối lượng
+            { wch: 15 },  // Đơn giá
+            { wch: 15 }   // Thành tiền
         ]
         worksheet['!cols'] = wscols
 
