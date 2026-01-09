@@ -1,24 +1,30 @@
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import Header from '../components/layout/Header'
-import FilterBar from '../components/expenses/FilterBar'
+import ExpenseSearchBar from '../components/expenses/ExpenseSearchBar'
+import SortToolbar from '../components/expenses/SortToolbar'
 import ExpenseCard from '../components/expenses/ExpenseCard'
 import ExpenseForm from '../components/forms/ExpenseForm'
 import ReasonModal from '../components/forms/ReasonModal'
 import { useProjects, useCategories, useExpenses, useDeleteExpense, useUpdateExpense } from '../hooks/useSupabase'
-import { getCurrentMonth } from '../utils/formatters'
+import { getCurrentMonth, getMonthsAgo } from '../utils/formatters'
 import { exportToExcel, exportToPDF } from '../utils/exportHelpers'
 import { X, CheckCircle } from 'lucide-react'
 
 const ExpenseList = () => {
+    // Filter states
     const [selectedProject, setSelectedProject] = useState('all')
-    const [selectedCategory, setSelectedCategory] = useState('all')
-    const [selectedMonth, setSelectedMonth] = useState('')
+    const [selectedCategories, setSelectedCategories] = useState([])
     const [searchText, setSearchText] = useState('')
+    const [startMonth, setStartMonth] = useState(getMonthsAgo(5))
+    const [endMonth, setEndMonth] = useState(getCurrentMonth())
+    const [sortOption, setSortOption] = useState('date_desc')
+
+    // UI states
     const [editingExpense, setEditingExpense] = useState(null)
 
     // States for reason modal
-    const [pendingUpdate, setPendingUpdate] = useState(null) // { id, formData, description }
-    const [pendingDelete, setPendingDelete] = useState(null) // { id, description }
+    const [pendingUpdate, setPendingUpdate] = useState(null)
+    const [pendingDelete, setPendingDelete] = useState(null)
     const [showSuccessToast, setShowSuccessToast] = useState(false)
     const [successMessage, setSuccessMessage] = useState('')
 
@@ -26,12 +32,41 @@ const ExpenseList = () => {
     const { categories } = useCategories()
     const { expenses, loading, refetch } = useExpenses({
         projectId: selectedProject,
-        categoryId: selectedCategory,
-        month: selectedMonth,
-        search: searchText
+        categoryIds: selectedCategories,
+        startMonth,
+        endMonth,
+        search: searchText,
+        sortOption
     })
     const { deleteExpense } = useDeleteExpense()
     const { updateExpense, loading: updating } = useUpdateExpense()
+
+    // Handle filter change from Bottom Sheet
+    const handleFilterChange = (filters) => {
+        setSelectedProject(filters.project)
+        setSelectedCategories(filters.categories)
+        setSearchText(filters.search)
+    }
+
+    // Handle date range change
+    const handleDateChange = (start, end) => {
+        setStartMonth(start)
+        setEndMonth(end)
+    }
+
+    // Remove individual filters
+    const handleRemoveProject = () => setSelectedProject('all')
+    const handleRemoveCategory = (categoryId) => {
+        setSelectedCategories(selectedCategories.filter(id => id !== categoryId))
+    }
+    const handleRemoveSearch = () => setSearchText('')
+
+    // Clear all filters
+    const clearAllFilters = () => {
+        setSelectedProject('all')
+        setSelectedCategories([])
+        setSearchText('')
+    }
 
     const handleEdit = (expense) => {
         setEditingExpense(expense)
@@ -64,7 +99,7 @@ const ExpenseList = () => {
                 formData,
                 description: editingExpense.description || 'Chi phí'
             })
-            setEditingExpense(null) // Close edit form
+            setEditingExpense(null)
         }
     }
 
@@ -86,13 +121,6 @@ const ExpenseList = () => {
             setShowSuccessToast(false)
             setSuccessMessage('')
         }, 2000)
-    }
-
-    const clearFilters = () => {
-        setSelectedProject('all')
-        setSelectedCategory('all')
-        setSelectedMonth('')
-        setSearchText('')
     }
 
     const handleDownload = (expense) => {
@@ -123,11 +151,6 @@ const ExpenseList = () => {
         exportToPDF(expenses, `DS_ChiPhi_${new Date().toISOString().slice(0, 10)}`)
     }
 
-    const hasActiveFilters = selectedProject !== 'all' ||
-        selectedCategory !== 'all' ||
-        selectedMonth !== '' ||
-        searchText !== ''
-
     return (
         <div className="page-container">
             {/* Header */}
@@ -137,20 +160,32 @@ const ExpenseList = () => {
                 onExportPDF={handleExportPDF}
             />
 
-            {/* Filter Bar */}
-            <FilterBar
+            {/* New Advanced Search Bar */}
+            <ExpenseSearchBar
                 projects={projects}
                 categories={categories}
                 selectedProject={selectedProject}
-                selectedCategory={selectedCategory}
-                selectedMonth={selectedMonth}
+                selectedCategories={selectedCategories}
                 searchText={searchText}
-                onProjectChange={setSelectedProject}
-                onCategoryChange={setSelectedCategory}
-                onMonthChange={setSelectedMonth}
-                onSearchChange={setSearchText}
-                hasActiveFilters={hasActiveFilters}
-                onClearFilters={clearFilters}
+                startMonth={startMonth}
+                endMonth={endMonth}
+                onFilterChange={handleFilterChange}
+                onDateChange={handleDateChange}
+            />
+
+            {/* Sort Toolbar & Filter Tags */}
+            <SortToolbar
+                sortOption={sortOption}
+                onSortChange={setSortOption}
+                selectedProject={selectedProject}
+                selectedCategories={selectedCategories}
+                searchText={searchText}
+                projects={projects}
+                categories={categories}
+                onRemoveProject={handleRemoveProject}
+                onRemoveCategory={handleRemoveCategory}
+                onRemoveSearch={handleRemoveSearch}
+                onClearAll={clearAllFilters}
             />
 
             {/* Expense List */}

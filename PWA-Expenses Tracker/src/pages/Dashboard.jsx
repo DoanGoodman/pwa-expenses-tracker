@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import Header from '../components/layout/Header'
-import DashboardFilter from '../components/dashboard/DashboardFilter'
+import AdvancedSearchBar from '../components/common/AdvancedSearchBar'
 import TotalCard from '../components/dashboard/TotalCard'
 import MonthlyBarChart from '../components/dashboard/MonthlyBarChart'
 import SCurveChart from '../components/dashboard/SCurveChart'
@@ -25,8 +25,8 @@ const Dashboard = () => {
             {/* Header */}
             <Header title="Tổng quan" />
 
-            {/* Filter Bar */}
-            <DashboardFilter
+            {/* Advanced Search Bar - Booking.com style */}
+            <AdvancedSearchBar
                 projects={projects}
                 selectedProject={selectedProject}
                 onProjectChange={setSelectedProject}
@@ -35,6 +35,7 @@ const Dashboard = () => {
                 onStartChange={setStartMonth}
                 onEndChange={setEndMonth}
             />
+
 
             {loading ? (
                 <div className="flex items-center justify-center py-20">

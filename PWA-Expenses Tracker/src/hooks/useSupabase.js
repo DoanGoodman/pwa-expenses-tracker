@@ -160,12 +160,19 @@ export const useCategories = () => {
 }
 
 // Hook để lấy danh sách expenses với filter (filtered by user_id)
+// Supports: projectId, categoryIds (array), startMonth, endMonth, search, sortOption
 export const useExpenses = (filters = {}) => {
     const [expenses, setExpenses] = useState([])
     const [loading, setLoading] = useState(true)
 
     const fetchExpenses = useCallback(async () => {
         setLoading(true)
+
+        // Parse sort option
+        const sortOption = filters.sortOption || 'date_desc'
+        const [sortField, sortDirection] = sortOption.split('_')
+        const sortColumn = sortField === 'created' ? 'created_at' : 'date'
+        const ascending = sortDirection === 'asc'
 
         if (isDemoMode()) {
             let filtered = [...demoData.expenses]
@@ -175,7 +182,10 @@ export const useExpenses = (filters = {}) => {
                 filtered = filtered.filter(e => e.project_id === filters.projectId)
             }
 
-            if (filters.categoryId && filters.categoryId !== 'all') {
+            // Support both single categoryId and categoryIds array
+            if (filters.categoryIds && filters.categoryIds.length > 0) {
+                filtered = filtered.filter(e => filters.categoryIds.includes(e.category_id))
+            } else if (filters.categoryId && filters.categoryId !== 'all') {
                 filtered = filtered.filter(e => e.category_id === filters.categoryId)
             }
 
@@ -200,8 +210,12 @@ export const useExpenses = (filters = {}) => {
                 )
             }
 
-            // Sort by date descending
-            filtered.sort((a, b) => new Date(b.date || b.expense_date) - new Date(a.date || a.expense_date))
+            // Sort based on option
+            filtered.sort((a, b) => {
+                const dateA = new Date(sortColumn === 'created_at' ? a.created_at : (a.date || a.expense_date))
+                const dateB = new Date(sortColumn === 'created_at' ? b.created_at : (b.date || b.expense_date))
+                return ascending ? dateA - dateB : dateB - dateA
+            })
 
             // Enrich with project and category names
             const enriched = filtered.map(expense => ({
@@ -228,13 +242,16 @@ export const useExpenses = (filters = {}) => {
                 .from('expenses')
                 .select('*')
                 .eq('user_id', userId)
-                .order('date', { ascending: false })
+                .order(sortColumn, { ascending })
 
             if (filters.projectId && filters.projectId !== 'all') {
                 query = query.eq('project_id', filters.projectId)
             }
 
-            if (filters.categoryId && filters.categoryId !== 'all') {
+            // Support multiple categories using .in()
+            if (filters.categoryIds && filters.categoryIds.length > 0) {
+                query = query.in('category_id', filters.categoryIds)
+            } else if (filters.categoryId && filters.categoryId !== 'all') {
                 query = query.eq('category_id', filters.categoryId)
             }
 
@@ -283,7 +300,7 @@ export const useExpenses = (filters = {}) => {
         } finally {
             setLoading(false)
         }
-    }, [filters.projectId, filters.categoryId, filters.month, filters.startMonth, filters.endMonth, filters.search])
+    }, [filters.projectId, filters.categoryId, filters.categoryIds, filters.month, filters.startMonth, filters.endMonth, filters.search, filters.sortOption])
 
     useEffect(() => {
         fetchExpenses()
@@ -291,6 +308,7 @@ export const useExpenses = (filters = {}) => {
 
     return { expenses, loading, refetch: fetchExpenses }
 }
+
 
 // Hook để thêm expense mới (with all 10 columns)
 export const useAddExpense = () => {
