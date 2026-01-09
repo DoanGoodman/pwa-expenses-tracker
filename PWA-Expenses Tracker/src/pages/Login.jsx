@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
+import ForgotPasswordBottomSheet from '../components/auth/ForgotPasswordBottomSheet'
 
 const Login = () => {
     const { signIn, signUp } = useAuth()
@@ -11,6 +12,7 @@ const Login = () => {
     const [rememberMe, setRememberMe] = useState(false)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
+    const [showForgotPassword, setShowForgotPassword] = useState(false)
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -92,17 +94,26 @@ const Login = () => {
                         </button>
                     </div>
 
-                    {/* Remember Me - Only for Login */}
+                    {/* Remember Me & Forgot Password - Only for Login */}
                     {isLogin && (
-                        <label className="login-remember">
-                            <input
-                                type="checkbox"
-                                checked={rememberMe}
-                                onChange={(e) => setRememberMe(e.target.checked)}
-                                className="login-checkbox"
-                            />
-                            <span>Ghi nhớ đăng nhập</span>
-                        </label>
+                        <div className="login-options">
+                            <label className="login-remember">
+                                <input
+                                    type="checkbox"
+                                    checked={rememberMe}
+                                    onChange={(e) => setRememberMe(e.target.checked)}
+                                    className="login-checkbox"
+                                />
+                                <span>Ghi nhớ đăng nhập</span>
+                            </label>
+                            <button
+                                type="button"
+                                onClick={() => setShowForgotPassword(true)}
+                                className="login-forgot-password"
+                            >
+                                Quên mật khẩu?
+                            </button>
+                        </div>
                     )}
 
                     {/* Submit Button */}
@@ -131,8 +142,15 @@ const Login = () => {
                     </button>
                 </form>
             </div>
+
+            {/* Forgot Password Bottom Sheet */}
+            <ForgotPasswordBottomSheet
+                isOpen={showForgotPassword}
+                onClose={() => setShowForgotPassword(false)}
+            />
         </div>
     )
 }
 
 export default Login
+

@@ -6,6 +6,7 @@ import ExpenseList from './pages/ExpenseList'
 import AddExpense from './pages/AddExpense'
 import Documents from './pages/Documents'
 import Login from './pages/Login'
+import ResetPassword from './pages/ResetPassword'
 
 // Protected App Content
 const AppContent = () => {
@@ -40,11 +41,17 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <AppContent />
+        <Routes>
+          {/* Public route for password reset */}
+          <Route path="/reset-password" element={<ResetPassword />} />
+          {/* All other routes go through AppContent */}
+          <Route path="/*" element={<AppContent />} />
+        </Routes>
       </AuthProvider>
     </Router>
   )
 }
 
 export default App
+
 

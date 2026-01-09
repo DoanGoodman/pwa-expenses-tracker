@@ -110,12 +110,46 @@ export const AuthProvider = ({ children }) => {
         return { success: true }
     }
 
+    // Reset password - send email
+    const resetPasswordForEmail = async (email) => {
+        if (isDemoMode()) {
+            return { success: true, message: 'Demo mode: Email sent (simulated)' }
+        }
+
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: 'https://qswings.xyz/reset-password'
+        })
+
+        if (error) {
+            return { success: false, error: error.message }
+        }
+        return { success: true }
+    }
+
+    // Update password
+    const updatePassword = async (newPassword) => {
+        if (isDemoMode()) {
+            return { success: true, message: 'Demo mode: Password updated (simulated)' }
+        }
+
+        const { error } = await supabase.auth.updateUser({
+            password: newPassword
+        })
+
+        if (error) {
+            return { success: false, error: error.message }
+        }
+        return { success: true }
+    }
+
     const value = {
         user,
         loading,
         signUp,
         signIn,
         signOut,
+        resetPasswordForEmail,
+        updatePassword,
         isAuthenticated: !!user
     }
 
