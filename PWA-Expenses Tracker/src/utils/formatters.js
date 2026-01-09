@@ -38,6 +38,14 @@ export const formatMonthYear = (monthString) => {
     return `T${parseInt(month)}/${year}`
 }
 
+// Format tháng năm ngắn gọn (T12/26 thay vì T12/2026)
+export const formatMonthYearShort = (monthString) => {
+    if (!monthString) return ''
+    const [year, month] = monthString.split('-')
+    const shortYear = year.slice(-2)
+    return `T${parseInt(month)}/${shortYear}`
+}
+
 // Lấy tháng hiện tại theo dạng YYYY-MM
 export const getCurrentMonth = () => {
     const now = new Date()

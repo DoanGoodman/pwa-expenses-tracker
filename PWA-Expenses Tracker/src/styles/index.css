@@ -859,6 +859,15 @@ a.bottom-nav-item {
     min-width: 0;
     flex: 1;
     padding-left: 4px;
+    justify-content: flex-end;
+}
+
+.search-bar-section.date-section .search-bar-left {
+    flex: none;
+}
+
+.search-bar-section.date-section .search-bar-content {
+    text-align: right;
 }
 
 .search-bar-left {
@@ -1382,6 +1391,15 @@ a.bottom-nav-item {
 .expense-search-section.date-section {
     flex: 1;
     padding-left: 4px;
+    justify-content: flex-end;
+}
+
+.expense-search-section.date-section .expense-search-left {
+    flex: none;
+}
+
+.expense-search-section.date-section .expense-search-content {
+    text-align: right;
 }
 
 .expense-search-left {
@@ -1728,11 +1746,11 @@ a.bottom-nav-item {
 .filter-tag {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 5px 8px;
+    gap: 4px;
+    padding: 6px 10px;
     background: var(--color-primary-light);
-    border-radius: 14px;
-    font-size: 0.7rem;
+    border-radius: 8px;
+    font-size: 0.75rem;
     font-weight: 500;
     color: var(--color-primary);
     white-space: nowrap;

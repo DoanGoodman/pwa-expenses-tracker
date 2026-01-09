@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { Search, Calendar, ChevronDown, Filter } from 'lucide-react'
+import { Search, ChevronDown, Filter } from 'lucide-react'
 import FilterBottomSheet from './FilterBottomSheet'
 import DateRangeBottomSheet from '../common/DateRangeBottomSheet'
-import { formatMonthYear } from '../../utils/formatters'
+import { formatMonthYearShort } from '../../utils/formatters'
 
 /**
  * ExpenseSearchBar - Thanh tìm kiếm đa thành phần cho trang Chi phí
@@ -49,10 +49,10 @@ const ExpenseSearchBar = ({
         return parts.join(', ')
     }
 
-    // Format date range for display
+    // Format date range for display (short format)
     const getDateRangeDisplay = () => {
-        const start = formatMonthYear(startMonth)
-        const end = formatMonthYear(endMonth)
+        const start = formatMonthYearShort(startMonth)
+        const end = formatMonthYearShort(endMonth)
 
         if (start === end) {
             return start
@@ -102,16 +102,13 @@ const ExpenseSearchBar = ({
                 {/* Divider */}
                 <div className="expense-search-divider" />
 
-                {/* Section 2 - Date Range */}
+                {/* Section 2 - Date Range (no icon, just text) */}
                 <button
                     className="expense-search-section date-section"
                     onClick={() => setShowDateSheet(true)}
                     aria-label="Chọn khoảng thời gian"
                 >
                     <div className="expense-search-left">
-                        <div className="expense-search-icon">
-                            <Calendar size={14} />
-                        </div>
                         <div className="expense-search-content">
                             <span className="expense-search-value">{getDateRangeDisplay()}</span>
                         </div>

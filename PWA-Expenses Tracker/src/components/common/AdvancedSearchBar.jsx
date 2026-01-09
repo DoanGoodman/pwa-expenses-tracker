@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { Building2, Calendar, ChevronDown } from 'lucide-react'
+import { Building2, ChevronDown } from 'lucide-react'
 import ProjectBottomSheet from './ProjectBottomSheet'
 import DateRangeBottomSheet from './DateRangeBottomSheet'
-import { formatMonthYear } from '../../utils/formatters'
+import { formatMonthYearShort } from '../../utils/formatters'
 
 /**
  * AdvancedSearchBar - Thanh tìm kiếm nâng cao cho Mobile PWA
@@ -39,10 +39,10 @@ const AdvancedSearchBar = ({
         return project?.name || 'Chọn dự án'
     }
 
-    // Format date range for display
+    // Format date range for display (short format)
     const getDateRangeDisplay = () => {
-        const start = formatMonthYear(startMonth)
-        const end = formatMonthYear(endMonth)
+        const start = formatMonthYearShort(startMonth)
+        const end = formatMonthYearShort(endMonth)
 
         if (start === end) {
             return start
@@ -81,16 +81,13 @@ const AdvancedSearchBar = ({
                 {/* Divider */}
                 <div className="search-bar-divider" />
 
-                {/* Right Section - Date Range Selector */}
+                {/* Right Section - Date Range Selector (no icon, just text) */}
                 <button
                     className="search-bar-section date-section"
                     onClick={() => setShowDateSheet(true)}
                     aria-label="Chọn khoảng thời gian"
                 >
                     <div className="search-bar-left">
-                        <div className="search-bar-icon">
-                            <Calendar size={14} />
-                        </div>
                         <div className="search-bar-content">
                             <span className="search-bar-label">Thời gian</span>
                             <span className="search-bar-value">{getDateRangeDisplay()}</span>
