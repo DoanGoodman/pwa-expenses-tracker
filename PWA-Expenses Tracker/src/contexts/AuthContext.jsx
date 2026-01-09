@@ -116,8 +116,11 @@ export const AuthProvider = ({ children }) => {
             return { success: true, message: 'Demo mode: Email sent (simulated)' }
         }
 
+        // Tự động lấy tên miền hiện tại (localhost hoặc production)
+        const redirectUrl = `${window.location.origin}/reset-password`
+
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: 'https://qswings.xyz/reset-password'
+            redirectTo: redirectUrl
         })
 
         if (error) {
