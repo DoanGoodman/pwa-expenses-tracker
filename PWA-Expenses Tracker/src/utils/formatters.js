@@ -1,13 +1,12 @@
-// Format số tiền sang VND
+// Format số tiền sang VND (1,000 đ)
 export const formatVND = (amount) => {
-    return new Intl.NumberFormat('vi-VN', {
-        style: 'currency',
-        currency: 'VND',
+    return new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 0,
         maximumFractionDigits: 0
-    }).format(amount)
+    }).format(amount) + ' đ'
 }
 
-// Format số tiền ngắn gọn (15M, 1.5B)
+// Format số tiền ngắn gọn (15M, 1.5B) - sử dụng dấu chấm thập phân
 export const formatVNDShort = (amount) => {
     if (amount >= 1000000000) {
         return (amount / 1000000000).toFixed(1) + 'B'
@@ -90,57 +89,56 @@ export const getShortMonthName = (monthString) => {
     return `T${parseInt(month)}`
 }
 
-// Parse số tiền từ input (loại bỏ dấu phẩy, chấm)
+// Parse số tiền từ input: loại bỏ dấu phẩy, giữ số nguyên
 export const parseAmount = (value) => {
     if (!value) return 0
-    return parseInt(String(value).replace(/[^\d]/g, '')) || 0
+    // Remove all commas (separators)
+    // Example: "1,000" -> "1000"
+    const cleanValue = String(value).replace(/,/g, '')
+    // Parse integer
+    return parseInt(cleanValue) || 0
 }
 
-// Format input số tiền với dấu phẩy (chỉ số nguyên)
+// Format input số tiền: thêm dấu phẩy phân cách hàng nghìn (1,000,000)
 export const formatAmountInput = (value) => {
     const number = parseAmount(value)
-    if (number === 0 && value !== '0') return ''
-    return new Intl.NumberFormat('vi-VN').format(number)
+    if (number === 0 && (value !== '0' && value !== 0)) return ''
+    return new Intl.NumberFormat('en-US').format(number)
 }
 
-// Parse số thập phân (cho khối lượng, v.v.)
+// Parse số thập phân: loại bỏ dấu phẩy (separator), giữ dấu chấm (decimal)
 export const parseDecimal = (value) => {
     if (!value) return 0
-    // Thay dấu phẩy thành rỗng, giữ lại dấu chấm
-    // Nếu người dùng nhập dấu phẩy làm thập phân (kiểu Việt Nam), chuyển nó thành chấm
+    // Remove commas
+    // Example: "1,000.50" -> "1000.50"
     let normalized = String(value).replace(/,/g, '')
-
-    // Xử lý trường hợp có nhiều dấu chấm, chỉ giữ dấu chấm đầu tiên
-    const parts = normalized.split('.')
-    if (parts.length > 2) {
-        normalized = parts[0] + '.' + parts.slice(1).join('')
-    }
-
     return parseFloat(normalized) || 0
 }
 
-// Format input số thập phân
+// Format input số thập phân: 1,000.50
 export const formatDecimalInput = (value) => {
     if (!value) return ''
 
-    // Cho phép nhập dấu chấm ở cuối (ví dụ: "12.")
-    if (String(value).endsWith('.')) {
-        return value
+    const stringValue = String(value)
+
+    // Allow typing dot at the end (e.g., "12.")
+    if (stringValue.endsWith('.')) {
+        return stringValue
     }
 
-    // Nếu đang nhập phần thập phân "12.50"
-    if (String(value).includes('.')) {
-        const parts = String(value).split('.')
+    // If typing decimals "12.50"
+    if (stringValue.includes('.')) {
+        const parts = stringValue.split('.')
         const integerPart = parts[0]
         const decimalPart = parts[1]
 
-        // Format phần nguyên
-        const formattedInteger = new Intl.NumberFormat('vi-VN').format(parseInt(integerPart) || 0)
+        // Format integer part with commas
+        const formattedInteger = new Intl.NumberFormat('en-US').format(parseInt(integerPart.replace(/,/g, '')) || 0)
 
-        // Ghép lại
+        // Return combined
         return `${formattedInteger}.${decimalPart}`
     }
 
-    // Số nguyên bình thường
-    return new Intl.NumberFormat('vi-VN').format(parseDecimal(value))
+    // Normal number
+    return new Intl.NumberFormat('en-US').format(parseDecimal(value))
 }
