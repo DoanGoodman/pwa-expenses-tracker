@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { X, Check } from 'lucide-react'
 
 const UNIT_OPTIONS = [
-    { value: '', label: 'Không chọn' },
+    { value: '', label: 'Chọn' },
     { value: 'm2', label: 'm²' },
     { value: 'm3', label: 'm³' },
     { value: 'md', label: 'md' },
@@ -83,20 +83,39 @@ const UnitBottomSheet = ({ isOpen, onClose, selectedUnit, onSelect }) => {
                     </button>
                 </div>
 
-                {/* Unit List */}
-                <div className="unit-list">
-                    {UNIT_OPTIONS.map((option) => (
-                        <button
-                            key={option.value}
-                            className={`unit-item ${selectedUnit === option.value ? 'selected' : ''}`}
-                            onClick={() => handleSelect(option.value)}
-                        >
-                            <span className="unit-label">{option.label}</span>
-                            {selectedUnit === option.value && (
-                                <Check size={20} className="unit-check" />
-                            )}
-                        </button>
-                    ))}
+                {/* Unit Tags Grid */}
+                <div className="unit-tags-container">
+                    <div className="unit-tags-grid">
+                        {UNIT_OPTIONS.map((option) => (
+                            <button
+                                key={option.value}
+                                className={`unit-tag ${selectedUnit === option.value ? 'selected' : ''}`}
+                                onClick={() => handleSelect(option.value)}
+                            >
+                                {option.label}
+                                {selectedUnit === option.value && (
+                                    <Check size={14} className="unit-tag-check" />
+                                )}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="unit-sheet-actions">
+                    <button
+                        className="unit-action-reset"
+                        onClick={() => handleSelect('')}
+                    >
+                        Đặt lại
+                    </button>
+                    <button
+                        className="unit-action-apply"
+                        onClick={onClose}
+                    >
+                        <Check size={18} />
+                        Áp dụng
+                    </button>
                 </div>
             </div>
         </div>

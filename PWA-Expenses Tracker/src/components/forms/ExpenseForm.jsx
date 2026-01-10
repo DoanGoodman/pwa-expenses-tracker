@@ -204,7 +204,7 @@ const ExpenseForm = ({
                     <div className="quantity-unit-price-row">
                         <div className="quantity-field">
                             <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                                KL
+                                Khối lượng
                             </label>
                             <input
                                 type="number"
