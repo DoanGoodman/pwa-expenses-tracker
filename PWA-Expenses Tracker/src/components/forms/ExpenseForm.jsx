@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Save, X, Edit3, Camera, Plus, ChevronDown } from 'lucide-react'
-import { formatAmountInput, parseAmount } from '../../utils/formatters'
+import { formatAmountInput, parseAmount, formatDecimalInput, parseDecimal } from '../../utils/formatters'
 import UnitBottomSheet, { UNIT_OPTIONS } from './UnitBottomSheet'
 
 const ExpenseForm = ({
@@ -47,14 +47,14 @@ const ExpenseForm = ({
 
     // Auto calculate amount when quantity or unit_price changes
     useEffect(() => {
-        const qty = parseFloat(formData.quantity) || 0
+        const qty = parseDecimal(formData.quantity) || 0
         const price = parseAmount(formData.unit_price) || 0
         const calculated = qty * price
 
         if (calculated > 0 && (parseAmount(formData.unit_price) > 0)) {
             setFormData(prev => ({
                 ...prev,
-                amount: formatAmountInput(String(calculated))
+                amount: formatAmountInput(String(Math.round(calculated))) // Round amount to avoid decimals in total
             }))
         }
     }, [formData.quantity, formData.unit_price])
@@ -62,6 +62,14 @@ const ExpenseForm = ({
     const handleChange = (field, value) => {
         if (field === 'amount' || field === 'unit_price') {
             value = formatAmountInput(value)
+        }
+        if (field === 'quantity') {
+            // Allow typing decimals: don't format if ending with dot
+            if (value.endsWith('.') || value.endsWith(',')) {
+                // Just update state, let user type
+            } else {
+                value = formatDecimalInput(value)
+            }
         }
         setFormData(prev => ({ ...prev, [field]: value }))
     }
@@ -71,7 +79,7 @@ const ExpenseForm = ({
 
         const submitData = {
             ...formData,
-            quantity: parseFloat(formData.quantity) || 1,
+            quantity: parseDecimal(formData.quantity) || 1,
             unit: formData.unit || null,
             unit_price: parseAmount(formData.unit_price),
             amount: parseAmount(formData.amount)
@@ -207,8 +215,8 @@ const ExpenseForm = ({
                                 Khối lượng
                             </label>
                             <input
-                                type="number"
-                                step="0.01"
+                                type="text"
+                                inputMode="decimal"
                                 value={formData.quantity}
                                 onChange={(e) => handleChange('quantity', e.target.value)}
                                 onFocus={(e) => e.target.select()}

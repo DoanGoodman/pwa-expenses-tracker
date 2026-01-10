@@ -96,9 +96,51 @@ export const parseAmount = (value) => {
     return parseInt(String(value).replace(/[^\d]/g, '')) || 0
 }
 
-// Format input số tiền với dấu phẩy
+// Format input số tiền với dấu phẩy (chỉ số nguyên)
 export const formatAmountInput = (value) => {
     const number = parseAmount(value)
-    if (number === 0) return ''
+    if (number === 0 && value !== '0') return ''
     return new Intl.NumberFormat('vi-VN').format(number)
+}
+
+// Parse số thập phân (cho khối lượng, v.v.)
+export const parseDecimal = (value) => {
+    if (!value) return 0
+    // Thay dấu phẩy thành rỗng, giữ lại dấu chấm
+    // Nếu người dùng nhập dấu phẩy làm thập phân (kiểu Việt Nam), chuyển nó thành chấm
+    let normalized = String(value).replace(/,/g, '')
+
+    // Xử lý trường hợp có nhiều dấu chấm, chỉ giữ dấu chấm đầu tiên
+    const parts = normalized.split('.')
+    if (parts.length > 2) {
+        normalized = parts[0] + '.' + parts.slice(1).join('')
+    }
+
+    return parseFloat(normalized) || 0
+}
+
+// Format input số thập phân
+export const formatDecimalInput = (value) => {
+    if (!value) return ''
+
+    // Cho phép nhập dấu chấm ở cuối (ví dụ: "12.")
+    if (String(value).endsWith('.')) {
+        return value
+    }
+
+    // Nếu đang nhập phần thập phân "12.50"
+    if (String(value).includes('.')) {
+        const parts = String(value).split('.')
+        const integerPart = parts[0]
+        const decimalPart = parts[1]
+
+        // Format phần nguyên
+        const formattedInteger = new Intl.NumberFormat('vi-VN').format(parseInt(integerPart) || 0)
+
+        // Ghép lại
+        return `${formattedInteger}.${decimalPart}`
+    }
+
+    // Số nguyên bình thường
+    return new Intl.NumberFormat('vi-VN').format(parseDecimal(value))
 }
