@@ -2162,3 +2162,145 @@ a.bottom-nav-item {
 .sort-clear-all:hover {
     background: #fecaca;
 }
+
+/* ===== EXPENSE FORM IMPROVEMENTS ===== */
+.expense-form-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.expense-form-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-bottom: 100px;
+    /* Safe area for button */
+}
+
+/* Category & Date Row */
+.category-date-row {
+    display: flex;
+    gap: 12px;
+}
+
+.category-date-field {
+    flex: 1;
+    min-width: 0;
+}
+
+.category-date-field .select-field,
+.category-date-field .input-field {
+    font-size: 0.875rem;
+}
+
+/* Quantity, Unit, Price Row - Adjusted Widths */
+.quantity-unit-price-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+}
+
+.quantity-field {
+    width: 70px;
+    flex-shrink: 0;
+}
+
+.unit-field {
+    width: 70px;
+    flex-shrink: 0;
+}
+
+.unit-price-field {
+    flex: 1;
+    min-width: 0;
+}
+
+.unit-price-field .input-field {
+    font-size: 0.9rem;
+}
+
+/* Unit Selector Button (triggers BottomSheet) */
+.unit-selector-btn {
+    width: 100%;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    padding: 0 10px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: var(--radius-lg);
+    font-size: 0.9rem;
+    color: #334155;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.unit-selector-btn:hover {
+    border-color: var(--color-primary);
+}
+
+.unit-selector-btn:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(0, 169, 157, 0.1);
+}
+
+/* Expense Form Buttons - Fixed at bottom */
+.expense-form-buttons {
+    display: flex;
+    gap: 12px;
+    padding-top: 16px;
+    margin-top: auto;
+    padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+
+/* ===== UNIT BOTTOM SHEET ===== */
+.unit-bottom-sheet {
+    max-height: 70vh;
+}
+
+.unit-list {
+    display: flex;
+    flex-direction: column;
+    padding: 0 16px 24px;
+    gap: 4px;
+    max-height: calc(70vh - 80px);
+    overflow-y: auto;
+}
+
+.unit-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-lg);
+    font-size: 1rem;
+    color: #334155;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    text-align: left;
+}
+
+.unit-item:hover {
+    background: #f1f5f9;
+}
+
+.unit-item.selected {
+    background: var(--color-primary-light);
+    color: var(--color-primary);
+    font-weight: 500;
+}
+
+.unit-label {
+    flex: 1;
+}
+
+.unit-check {
+    color: var(--color-primary);
+    flex-shrink: 0;
+}

@@ -1,21 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Save, X, Edit3, Camera, Plus } from 'lucide-react'
+import { Save, X, Edit3, Camera, Plus, ChevronDown } from 'lucide-react'
 import { formatAmountInput, parseAmount } from '../../utils/formatters'
-
-// List of unit options for ĐVT dropdown
-const UNIT_OPTIONS = [
-    { value: '', label: 'Chọn' },
-    { value: 'm2', label: 'm2' },
-    { value: 'm3', label: 'm3' },
-    { value: 'md', label: 'md' },
-    { value: 'kg', label: 'kg' },
-    { value: 'lit', label: 'lít' },
-    { value: 'bao', label: 'bao' },
-    { value: 'thung', label: 'thùng' },
-    { value: 'cai', label: 'cái' },
-    { value: 'hop', label: 'hộp' },
-    { value: 'ls', label: 'ls' },
-]
+import UnitBottomSheet, { UNIT_OPTIONS } from './UnitBottomSheet'
 
 const ExpenseForm = ({
     projects,
@@ -27,6 +13,7 @@ const ExpenseForm = ({
     onAddProject
 }) => {
     const [inputMethod, setInputMethod] = useState('manual') // 'manual' or 'invoice'
+    const [showUnitSheet, setShowUnitSheet] = useState(false)
     const [formData, setFormData] = useState({
         project_id: '',
         category_id: '',
@@ -93,13 +80,18 @@ const ExpenseForm = ({
         onSubmit(submitData)
     }
 
+    const getUnitLabel = (value) => {
+        const option = UNIT_OPTIONS.find(opt => opt.value === value)
+        return option ? option.label : 'Chọn'
+    }
+
     const isValid = formData.project_id &&
         formData.category_id &&
         formData.date &&
         parseAmount(formData.amount) > 0
 
     return (
-        <div>
+        <div className="expense-form-container">
             {/* Input Method Tabs */}
             <div className="flex gap-2 mb-4">
                 <button
@@ -127,7 +119,7 @@ const ExpenseForm = ({
             </div>
 
             {inputMethod === 'manual' ? (
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="expense-form-content">
                     {/* Project Select with Add Button */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -160,38 +152,38 @@ const ExpenseForm = ({
                         </div>
                     </div>
 
-                    {/* Category Select */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                            Danh mục <span className="text-red-500">*</span>
-                        </label>
-                        <select
-                            value={formData.category_id}
-                            onChange={(e) => handleChange('category_id', e.target.value)}
-                            className="select-field"
-                            required
-                        >
-                            <option value="">Chọn danh mục</option>
-                            {categories.map(category => (
-                                <option key={category.id} value={category.id}>
-                                    {category.icon} {category.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {/* Date */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                            Ngày chi <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                            type="date"
-                            value={formData.date}
-                            onChange={(e) => handleChange('date', e.target.value)}
-                            className="input-field"
-                            required
-                        />
+                    {/* Category & Date on same row */}
+                    <div className="category-date-row">
+                        <div className="category-date-field">
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                Danh mục <span className="text-red-500">*</span>
+                            </label>
+                            <select
+                                value={formData.category_id}
+                                onChange={(e) => handleChange('category_id', e.target.value)}
+                                className="select-field"
+                                required
+                            >
+                                <option value="">Chọn</option>
+                                {categories.map(category => (
+                                    <option key={category.id} value={category.id}>
+                                        {category.icon} {category.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="category-date-field">
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                Ngày chi <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="date"
+                                value={formData.date}
+                                onChange={(e) => handleChange('date', e.target.value)}
+                                className="input-field"
+                                required
+                            />
+                        </div>
                     </div>
 
                     {/* Description */}
@@ -208,11 +200,11 @@ const ExpenseForm = ({
                         />
                     </div>
 
-                    {/* Quantity and Unit (ĐVT) - Same row */}
-                    <div className="flex gap-3">
-                        <div className="flex-1">
+                    {/* Quantity, Unit (ĐVT), Unit Price - Adjusted widths */}
+                    <div className="quantity-unit-price-row">
+                        <div className="quantity-field">
                             <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                                Khối lượng
+                                KL
                             </label>
                             <input
                                 type="number"
@@ -224,23 +216,20 @@ const ExpenseForm = ({
                                 placeholder="1"
                             />
                         </div>
-                        <div className="w-24 flex-shrink-0">
+                        <div className="unit-field">
                             <label className="block text-sm font-medium text-gray-700 mb-1.5">
                                 ĐVT
                             </label>
-                            <select
-                                value={formData.unit}
-                                onChange={(e) => handleChange('unit', e.target.value)}
-                                className="select-field"
+                            <button
+                                type="button"
+                                onClick={() => setShowUnitSheet(true)}
+                                className="unit-selector-btn"
                             >
-                                {UNIT_OPTIONS.map(option => (
-                                    <option key={option.value} value={option.value}>
-                                        {option.label}
-                                    </option>
-                                ))}
-                            </select>
+                                <span>{getUnitLabel(formData.unit)}</span>
+                                <ChevronDown size={16} />
+                            </button>
                         </div>
-                        <div className="flex-1">
+                        <div className="unit-price-field">
                             <label className="block text-sm font-medium text-gray-700 mb-1.5">
                                 Đơn giá (VND)
                             </label>
@@ -277,8 +266,8 @@ const ExpenseForm = ({
                         </p>
                     </div>
 
-                    {/* Buttons */}
-                    <div className="flex gap-3 pt-4">
+                    {/* Buttons with safe area padding */}
+                    <div className="expense-form-buttons">
                         {onCancel && (
                             <button
                                 type="button"
@@ -311,6 +300,14 @@ const ExpenseForm = ({
                     </p>
                 </div>
             )}
+
+            {/* Unit Bottom Sheet */}
+            <UnitBottomSheet
+                isOpen={showUnitSheet}
+                onClose={() => setShowUnitSheet(false)}
+                selectedUnit={formData.unit}
+                onSelect={(value) => handleChange('unit', value)}
+            />
         </div>
     )
 }
