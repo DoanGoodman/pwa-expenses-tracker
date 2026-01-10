@@ -110,6 +110,32 @@ export const AuthProvider = ({ children }) => {
         return { success: true }
     }
 
+    // Sign in with Google
+    const signInWithGoogle = async () => {
+        if (isDemoMode()) {
+            const demoUser = {
+                id: 'demo-google-user-' + Date.now(),
+                email: 'demo@gmail.com',
+                user_metadata: { full_name: 'Demo Google User', avatar_url: '' }
+            }
+            localStorage.setItem('demo_user', JSON.stringify(demoUser))
+            setUser(demoUser)
+            return { success: true }
+        }
+
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                redirectTo: window.location.origin
+            }
+        })
+
+        if (error) {
+            return { success: false, error: error.message }
+        }
+        return { success: true }
+    }
+
     // Reset password - send email
     const resetPasswordForEmail = async (email) => {
         if (isDemoMode()) {
@@ -151,6 +177,7 @@ export const AuthProvider = ({ children }) => {
         signUp,
         signIn,
         signOut,
+        signInWithGoogle,
         resetPasswordForEmail,
         updatePassword,
         isAuthenticated: !!user
