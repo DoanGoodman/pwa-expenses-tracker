@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, Loader2, CheckCircle } from 'lucide-react'
 import ForgotPasswordBottomSheet from '../components/auth/ForgotPasswordBottomSheet'
 
 const Login = () => {
@@ -13,6 +13,7 @@ const Login = () => {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
     const [showForgotPassword, setShowForgotPassword] = useState(false)
+    const [registrationSuccess, setRegistrationSuccess] = useState(false)
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -20,18 +21,61 @@ const Login = () => {
         setLoading(true)
 
         try {
-            const result = isLogin
-                ? await signIn(email, password)
-                : await signUp(email, password)
-
-            if (!result.success) {
-                setError(result.error || 'Có lỗi xảy ra')
+            if (isLogin) {
+                // Đăng nhập
+                const result = await signIn(email, password)
+                if (!result.success) {
+                    setError(result.error || 'Có lỗi xảy ra')
+                }
+            } else {
+                // Đăng ký
+                const result = await signUp(email, password)
+                if (result.success) {
+                    // Hiển thị màn hình thành công
+                    setRegistrationSuccess(true)
+                } else {
+                    setError(result.error || 'Có lỗi xảy ra')
+                }
             }
         } catch (err) {
             setError('Lỗi kết nối. Vui lòng thử lại.')
         } finally {
             setLoading(false)
         }
+    }
+
+    const handleBackToLogin = () => {
+        setRegistrationSuccess(false)
+        setIsLogin(true)
+        setEmail('')
+        setPassword('')
+        setError('')
+    }
+
+    // Màn hình thông báo đăng ký thành công
+    if (registrationSuccess) {
+        return (
+            <div className="login-container">
+                <div className="login-content">
+                    <div className="registration-success">
+                        <div className="registration-success-icon">
+                            <CheckCircle size={64} />
+                        </div>
+                        <h2>Đăng ký thành công!</h2>
+                        <p>
+                            Chúng tôi đã gửi email xác nhận đến <strong>{email}</strong>.
+                            Vui lòng kiểm tra hộp thư (bao gồm cả thư mục Spam) và nhấn vào link để kích hoạt tài khoản.
+                        </p>
+                        <button
+                            onClick={handleBackToLogin}
+                            className="login-btn-primary"
+                        >
+                            Quay lại Đăng nhập
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )
     }
 
     return (
@@ -153,4 +197,5 @@ const Login = () => {
 }
 
 export default Login
+
 

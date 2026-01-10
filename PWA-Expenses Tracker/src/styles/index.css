@@ -802,6 +802,38 @@ a.bottom-nav-item {
     text-decoration: underline;
 }
 
+/* ===== REGISTRATION SUCCESS ===== */
+.registration-success {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 16px;
+    padding: 24px 0;
+}
+
+.registration-success-icon {
+    color: var(--color-primary);
+}
+
+.registration-success h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+}
+
+.registration-success p {
+    color: #64748b;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.registration-success strong {
+    color: var(--color-primary);
+}
+
 /* ===== FORGOT PASSWORD BOTTOM SHEET ===== */
 .forgot-password-form {
     display: flex;
