@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 import { LayoutDashboard, List, PlusCircle } from 'lucide-react'
 
 const navItems = [
@@ -9,11 +9,6 @@ const navItems = [
 ]
 
 const BottomNav = () => {
-    const location = useLocation()
-
-    // Hide bottom nav on Add Expense page to focus on input
-    if (location.pathname === '/add') return null
-
     return (
         <nav className="bottom-nav">
             <div className="flex justify-around items-center max-w-md mx-auto">

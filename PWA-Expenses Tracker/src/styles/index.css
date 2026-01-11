@@ -2248,26 +2248,27 @@ a.bottom-nav-item {
     box-shadow: 0 0 0 3px rgba(0, 169, 157, 0.1);
 }
 
-/* Expense Form Content - Add padding for fixed buttons */
+/* Expense Form Content - Add padding for fixed buttons + nav */
 .expense-form-content {
-    padding-bottom: 100px;
+    padding-bottom: 160px;
+    /* Space for buttons (80px) + nav (65px) + buffer */
 }
 
-/* Expense Form Buttons - Fixed at bottom */
+/* Expense Form Buttons - Fixed above bottom nav */
 .expense-form-buttons {
     position: fixed;
-    bottom: 0;
+    bottom: 65px;
+    /* Height of bottom nav */
     left: 0;
     right: 0;
-    z-index: 50;
+    z-index: 45;
+    /* Below nav (50) but above content */
     display: flex;
     gap: 12px;
-    padding: 16px;
-    padding-bottom: max(16px, env(safe-area-inset-bottom));
+    padding: 12px 16px;
     background: white;
     border-top: 1px solid #e2e8f0;
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
-    animation: slideUp 0.3s ease-out;
 }
 
 @keyframes slideUp {
