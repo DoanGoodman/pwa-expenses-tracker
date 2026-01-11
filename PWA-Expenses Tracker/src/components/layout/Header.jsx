@@ -95,7 +95,7 @@ const Header = ({ title, onExportExcel, onExportPDF, leftAction }) => {
                     aria-label="Tài khoản"
                 >
                     <div className="avatar-circle">
-                        <User size={18} />
+                        <span className="avatar-initials">{displayName.charAt(0).toUpperCase()}</span>
                     </div>
                 </button>
 
@@ -104,7 +104,7 @@ const Header = ({ title, onExportExcel, onExportPDF, leftAction }) => {
                     <div className="header-dropdown right">
                         <div className="dropdown-header">
                             <div className="avatar-circle small">
-                                <User size={14} />
+                                <span className="avatar-initials">{displayName.charAt(0).toUpperCase()}</span>
                             </div>
                             <div className="user-info">
                                 <span className="user-name">{displayName}</span>

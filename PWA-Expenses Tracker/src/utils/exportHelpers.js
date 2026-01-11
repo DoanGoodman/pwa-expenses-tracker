@@ -1,7 +1,10 @@
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { formatVND, formatDateVN } from './formatters'
+
+// Primary Teal color for the application
+const TEAL_COLOR = '00A99D'
 
 // Helper: Format data for export - Matches Supabase expenses table structure
 // Data sorted by date (most recent first)
@@ -14,44 +17,154 @@ const formatDataForExport = (expenses) => {
     })
 
     return sortedExpenses.map((item, index) => ({
-        'STT': index + 1,
-        'Ngày': formatDateVN(item.date || item.expense_date),
-        'Dự án': item.project?.name || 'N/A',
-        'Hạng mục': item.category?.name || 'N/A',
-        'Nội dung': item.description || '',
-        'ĐVT': item.unit || '',
-        'Khối lượng': item.quantity || 1,
-        'Đơn giá': item.unit_price || 0,
-        'Thành tiền': item.amount || 0
+        stt: index + 1,
+        ngayChi: formatDateVN(item.date || item.expense_date),
+        ngayNhap: formatDateVN(item.created_at),
+        duAn: item.project?.name || 'N/A',
+        hangMuc: item.category?.name || 'N/A',
+        noiDung: item.description || '',
+        dvt: item.unit || '',
+        khoiLuong: item.quantity || 1,
+        donGia: item.unit_price || 0,
+        thanhTien: item.amount || 0
     }))
 }
 
-// Export to Excel with iOS Safari support
+// Export to Excel using ExcelJS with Teal table styling
 export const exportToExcel = async (expenses, fileName = 'Danh_sach_chi_phi') => {
     try {
         const data = formatDataForExport(expenses)
-        const worksheet = XLSX.utils.json_to_sheet(data)
-        const workbook = XLSX.utils.book_new()
 
-        // Adjust column widths for new structure
-        const wscols = [
-            { wch: 5 },   // STT
-            { wch: 12 },  // Ngày
-            { wch: 20 },  // Dự án
-            { wch: 15 },  // Hạng mục
-            { wch: 30 },  // Nội dung
-            { wch: 8 },   // ĐVT
-            { wch: 12 },  // Khối lượng
-            { wch: 15 },  // Đơn giá
-            { wch: 15 }   // Thành tiền
+        // Create workbook and worksheet
+        const workbook = new ExcelJS.Workbook()
+        workbook.creator = 'qswings Expenses Tracker'
+        workbook.created = new Date()
+
+        const worksheet = workbook.addWorksheet('Chi phí', {
+            views: [{ state: 'frozen', ySplit: 1 }] // Freeze header row
+        })
+
+        // Define columns with headers
+        worksheet.columns = [
+            { header: 'STT', key: 'stt', width: 6 },
+            { header: 'Ngày chi', key: 'ngayChi', width: 12 },
+            { header: 'Ngày nhập', key: 'ngayNhap', width: 12 },
+            { header: 'Dự án', key: 'duAn', width: 25 },
+            { header: 'Hạng mục', key: 'hangMuc', width: 15 },
+            { header: 'Nội dung', key: 'noiDung', width: 35 },
+            { header: 'ĐVT', key: 'dvt', width: 8 },
+            { header: 'Khối lượng', key: 'khoiLuong', width: 12 },
+            { header: 'Đơn giá', key: 'donGia', width: 15 },
+            { header: 'Thành tiền', key: 'thanhTien', width: 15 }
         ]
-        worksheet['!cols'] = wscols
 
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Chi phi')
+        // Style header row
+        const headerRow = worksheet.getRow(1)
+        headerRow.height = 24
+        headerRow.eachCell((cell) => {
+            cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: TEAL_COLOR }
+            }
+            cell.font = {
+                bold: true,
+                color: { argb: 'FFFFFFFF' },
+                size: 11
+            }
+            cell.alignment = {
+                horizontal: 'center',
+                vertical: 'middle'
+            }
+            cell.border = {
+                top: { style: 'thin', color: { argb: '008B85' } },
+                left: { style: 'thin', color: { argb: '008B85' } },
+                bottom: { style: 'thin', color: { argb: '008B85' } },
+                right: { style: 'thin', color: { argb: '008B85' } }
+            }
+        })
 
-        // Generate file as base64
-        const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
-        const blob = new Blob([excelBuffer], {
+        // Add data rows
+        data.forEach((item, index) => {
+            const row = worksheet.addRow(item)
+
+            // Alternate row colors for better readability (Teal light stripe)
+            const isEvenRow = index % 2 === 0
+            row.eachCell((cell, colNumber) => {
+                // Light teal for even rows
+                if (isEvenRow) {
+                    cell.fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: 'E6F7F5' } // Very light teal
+                    }
+                }
+
+                // Border for all cells
+                cell.border = {
+                    top: { style: 'thin', color: { argb: 'CCCCCC' } },
+                    left: { style: 'thin', color: { argb: 'CCCCCC' } },
+                    bottom: { style: 'thin', color: { argb: 'CCCCCC' } },
+                    right: { style: 'thin', color: { argb: 'CCCCCC' } }
+                }
+
+                // Number formatting for currency columns
+                if (colNumber === 9 || colNumber === 10) { // Đơn giá, Thành tiền
+                    cell.numFmt = '#,##0'
+                    cell.alignment = { horizontal: 'right' }
+                }
+
+                // Center alignment for some columns
+                if (colNumber === 1 || colNumber === 7 || colNumber === 8) { // STT, ĐVT, Khối lượng
+                    cell.alignment = { horizontal: 'center' }
+                }
+            })
+        })
+
+        // Add totals row
+        const lastRowNum = worksheet.rowCount
+        const totalRow = worksheet.addRow({
+            stt: '',
+            ngayChi: '',
+            ngayNhap: '',
+            duAn: '',
+            hangMuc: '',
+            noiDung: 'TỔNG CỘNG',
+            dvt: '',
+            khoiLuong: '',
+            donGia: '',
+            thanhTien: { formula: `SUM(J2:J${lastRowNum})` }
+        })
+
+        totalRow.eachCell((cell, colNumber) => {
+            cell.font = { bold: true }
+            cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: TEAL_COLOR }
+            }
+            cell.font = {
+                bold: true,
+                color: { argb: 'FFFFFFFF' }
+            }
+            cell.border = {
+                top: { style: 'medium', color: { argb: '008B85' } },
+                left: { style: 'thin', color: { argb: '008B85' } },
+                bottom: { style: 'medium', color: { argb: '008B85' } },
+                right: { style: 'thin', color: { argb: '008B85' } }
+            }
+            if (colNumber === 10) {
+                cell.numFmt = '#,##0'
+                cell.alignment = { horizontal: 'right' }
+            }
+            if (colNumber === 6) {
+                cell.alignment = { horizontal: 'right' }
+            }
+        })
+
+        // Generate blob
+        const buffer = await workbook.xlsx.writeBuffer()
+        const blob = new Blob([buffer], {
             type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         })
 
@@ -79,7 +192,6 @@ export const exportToExcel = async (expenses, fileName = 'Danh_sach_chi_phi') =>
         // For iOS Safari, we need to open in same window
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
         if (isIOS) {
-            // Open blob URL in new tab for iOS
             window.open(url, '_blank')
             alert('File Excel đã mở. Nhấn giữ và chọn "Tải về" hoặc "Mở trong Numbers" để lưu.')
         } else {
@@ -104,13 +216,6 @@ export const exportToPDF = (expenses, fileName = 'Danh_sach_chi_phi') => {
     try {
         const doc = new jsPDF()
 
-        // Add font support for Vietnamese (this assumes standard font, for full support need custom font)
-        // Since custom font loading is complex in client-side w/o assets, we'll try to use standard font
-        // Note: Default fonts don't support Vietnamese well. 
-        // We will try to rely on autoTable's font handling or simply accept basic ascii if font not present.
-        // For distinct Vietnamese support in jsPDF, we usually need to add a font file.
-        // For this streamlined impl, we focus on structure.
-
         doc.text('DANH SÁCH CHI PHÍ', 14, 20)
 
         const tableColumn = ["STT", "Ngày", "Nội dung", "Dự án", "Hạng mục", "Số tiền"]
@@ -133,7 +238,7 @@ export const exportToPDF = (expenses, fileName = 'Danh_sach_chi_phi') => {
             body: tableRows,
             startY: 30,
             styles: { font: 'helvetica', fontSize: 10 },
-            headStyles: { fillColor: [0, 169, 157] }
+            headStyles: { fillColor: [0, 169, 157] } // Teal color
         })
 
         doc.save(`${fileName}.pdf`)

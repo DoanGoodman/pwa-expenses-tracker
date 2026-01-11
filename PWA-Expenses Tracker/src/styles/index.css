@@ -113,6 +113,17 @@ body {
     height: 32px;
 }
 
+.avatar-initials {
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    line-height: 1;
+}
+
+.avatar-circle.small .avatar-initials {
+    font-size: 12px;
+}
+
 /* Dropdown Styles */
 .header-dropdown {
     position: absolute;
