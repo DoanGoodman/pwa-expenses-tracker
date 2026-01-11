@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gg-expenses-v2';
+const CACHE_NAME = 'gg-expenses-v3';
 const urlsToCache = [
     '/',
     '/index.html',
