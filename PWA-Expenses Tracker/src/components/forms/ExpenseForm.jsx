@@ -139,8 +139,18 @@ const ExpenseForm = ({
                                 {projects.find(p => p.id === formData.project_id)?.name || 'Chưa chọn dự án'}
                             </div>
                             <div className="summary-subtitle">
-                                <span>{categories.find(c => c.id === formData.category_id)?.name || 'Chưa chọn danh mục'}</span>
-                                <span className="text-gray-300">•</span>
+                                {categories.find(c => c.id === formData.category_id) ? (
+                                    <span
+                                        className="flex items-center gap-1.5 font-medium"
+                                        style={{ color: categories.find(c => c.id === formData.category_id).color || '#64748b' }}
+                                    >
+                                        <span>{categories.find(c => c.id === formData.category_id).icon}</span>
+                                        <span>{categories.find(c => c.id === formData.category_id).name}</span>
+                                    </span>
+                                ) : (
+                                    <span>Chưa chọn danh mục</span>
+                                )}
+                                <span className="text-gray-300 mx-1">•</span>
                                 <span>{formatDateVN(formData.date)}</span>
                             </div>
                         </div>

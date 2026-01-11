@@ -2248,13 +2248,36 @@ a.bottom-nav-item {
     box-shadow: 0 0 0 3px rgba(0, 169, 157, 0.1);
 }
 
+/* Expense Form Content - Add padding for fixed buttons */
+.expense-form-content {
+    padding-bottom: 100px;
+}
+
 /* Expense Form Buttons - Fixed at bottom */
 .expense-form-buttons {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
     display: flex;
     gap: 12px;
-    padding-top: 16px;
-    margin-top: auto;
-    padding-bottom: env(safe-area-inset-bottom, 16px);
+    padding: 16px;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+    background: white;
+    border-top: 1px solid #e2e8f0;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+    }
+
+    to {
+        transform: translateY(0);
+    }
 }
 
 /* ===== UNIT BOTTOM SHEET - TAG STYLE ===== */
@@ -2347,6 +2370,7 @@ a.bottom-nav-item {
 .unit-action-apply:hover {
     background: var(--color-primary-dark);
 }
+
 /* ===== SELECTION SUMMARY BAR (Expense Form) ===== */
 .selection-summary-bar {
     display: flex;
@@ -2359,17 +2383,20 @@ a.bottom-nav-item {
     margin-bottom: 20px;
     cursor: pointer;
     transition: all 0.2s;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
+
 .selection-summary-bar:active {
     background: #f8fafc;
     transform: scale(0.99);
 }
+
 .summary-content {
     display: flex;
     flex-direction: column;
     gap: 4px;
 }
+
 .summary-title {
     font-size: 1rem;
     font-weight: 600;
@@ -2378,6 +2405,7 @@ a.bottom-nav-item {
     align-items: center;
     gap: 8px;
 }
+
 .summary-subtitle {
     font-size: 0.85rem;
     color: #64748b;
@@ -2385,6 +2413,7 @@ a.bottom-nav-item {
     align-items: center;
     gap: 6px;
 }
+
 .summary-arrow {
     color: #94a3b8;
 }
@@ -2404,6 +2433,7 @@ a.bottom-nav-item {
     gap: 8px;
     margin-bottom: 16px;
 }
+
 .section-title {
     font-size: 0.85rem;
     font-weight: 600;
@@ -2417,6 +2447,7 @@ a.bottom-nav-item {
     position: relative;
     margin-bottom: 12px;
 }
+
 .project-search-input {
     width: 100%;
     padding: 12px 40px 12px 40px;
@@ -2426,11 +2457,13 @@ a.bottom-nav-item {
     background: #f8fafc;
     transition: all 0.2s;
 }
+
 .project-search-input:focus {
     background: white;
     border-color: var(--color-primary);
     outline: none;
 }
+
 .search-icon {
     position: absolute;
     left: 12px;
@@ -2438,6 +2471,7 @@ a.bottom-nav-item {
     transform: translateY(-50%);
     color: #94a3b8;
 }
+
 .search-clear-btn {
     position: absolute;
     right: 12px;
@@ -2456,6 +2490,7 @@ a.bottom-nav-item {
     border-radius: 12px;
     background: white;
 }
+
 .project-item-row {
     width: 100%;
     display: flex;
@@ -2470,12 +2505,15 @@ a.bottom-nav-item {
     color: #334155;
     transition: background 0.1s;
 }
+
 .project-item-row:last-child {
     border-bottom: none;
 }
+
 .project-item-row:active {
     background: #f8fafc;
 }
+
 .project-item-row.selected {
     background: #f0fdfa;
     color: var(--color-primary);
@@ -2488,6 +2526,7 @@ a.bottom-nav-item {
     flex-wrap: wrap;
     gap: 8px;
 }
+
 .category-tag-chip {
     padding: 10px 16px;
     border: 1px solid #e2e8f0;
@@ -2497,9 +2536,11 @@ a.bottom-nav-item {
     color: #475569;
     transition: all 0.2s;
 }
+
 .category-tag-chip:active {
     transform: scale(0.95);
 }
+
 .category-tag-chip.selected {
     background: var(--color-primary);
     color: white;
@@ -2519,6 +2560,7 @@ a.bottom-nav-item {
     background: #fff;
     font-family: inherit;
 }
+
 .date-picker-input-large:focus {
     border-color: var(--color-primary);
     outline: none;
@@ -2544,6 +2586,7 @@ a.bottom-nav-item {
     z-index: 50;
     padding-bottom: env(safe-area-inset-bottom, 16px);
 }
+
 .btn-sheet-apply {
     width: 100%;
     padding: 14px;
@@ -2559,8 +2602,8 @@ a.bottom-nav-item {
     gap: 8px;
     box-shadow: 0 4px 6px -1px rgba(0, 169, 157, 0.2);
 }
+
 .btn-sheet-apply:active {
     transform: translateY(1px);
     box-shadow: none;
 }
-
