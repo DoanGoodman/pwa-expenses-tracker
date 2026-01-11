@@ -37,5 +37,9 @@ export const demoData = {
 
 // Check if using demo mode
 export const isDemoMode = () => {
+    // Force demo mode if env var is set (useful for local dev/testing)
+    if (import.meta.env.VITE_USE_DEMO === 'true') {
+        return true
+    }
     return supabaseUrl === 'https://your-project.supabase.co'
 }
