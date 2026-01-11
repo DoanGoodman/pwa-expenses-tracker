@@ -2616,3 +2616,92 @@ a.bottom-nav-item {
     transform: translateY(1px);
     box-shadow: none;
 }
+
+/* ===== RECEIPT SCANNER STYLES ===== */
+
+/* Image picker button */
+.receipt-picker-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 48px 24px;
+    background: linear-gradient(135deg, #f0fdfa 0%, #e0f2fe 100%);
+    border: 2px dashed var(--color-primary);
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-top: 20px;
+}
+
+.receipt-picker-btn:hover,
+.receipt-picker-btn:active {
+    background: linear-gradient(135deg, #ccfbf1 0%, #cffafe 100%);
+    border-color: #0d9488;
+}
+
+.receipt-picker-btn .picker-icon {
+    width: 80px;
+    height: 80px;
+    background: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-primary);
+    box-shadow: 0 4px 15px rgba(0, 169, 157, 0.2);
+}
+
+.receipt-picker-btn .picker-label {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-primary);
+}
+
+.receipt-picker-btn .picker-hint {
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+/* Receipt item card */
+.receipt-item-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 16px;
+    transition: all 0.3s ease;
+}
+
+.receipt-item-card.flash-warning {
+    border-color: #fbbf24;
+    box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.3);
+    animation: flashBorder 1.5s ease-in-out infinite;
+}
+
+@keyframes flashBorder {
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.3);
+    }
+
+    50% {
+        box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.5);
+    }
+}
+
+/* Processing overlay */
+.receipt-scanner-processing {
+    min-height: 400px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+/* Review mode */
+.receipt-scanner-review {
+    padding: 16px;
+}

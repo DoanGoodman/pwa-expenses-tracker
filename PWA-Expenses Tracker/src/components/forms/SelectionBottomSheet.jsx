@@ -10,7 +10,8 @@ const SelectionBottomSheet = ({
     projects = [],
     categories = [],
     initialData = {}, // { projectId, categoryId, date }
-    onApply
+    onApply,
+    hideDate = false
 }) => {
     // Internal state
     const [projectId, setProjectId] = useState('')
@@ -120,22 +121,26 @@ const SelectionBottomSheet = ({
                     </div>
                 </div>
 
-                <div className="sheet-divider"></div>
+                {!hideDate && (
+                    <>
+                        <div className="sheet-divider"></div>
 
-                {/* --- SELECTION GROUP 3: NGÀY CHI --- */}
-                <div className="sheet-section">
-                    <div className="section-header">
-                        <Calendar size={16} className="text-gray-500" />
-                        <span className="section-title">Ngày chi</span>
-                    </div>
+                        {/* --- SELECTION GROUP 3: NGÀY CHI --- */}
+                        <div className="sheet-section">
+                            <div className="section-header">
+                                <Calendar size={16} className="text-gray-500" />
+                                <span className="section-title">Ngày chi</span>
+                            </div>
 
-                    <input
-                        type="date"
-                        value={date}
-                        onChange={(e) => setDate(e.target.value)}
-                        className="date-picker-input-large"
-                    />
-                </div>
+                            <input
+                                type="date"
+                                value={date}
+                                onChange={(e) => setDate(e.target.value)}
+                                className="date-picker-input-large"
+                            />
+                        </div>
+                    </>
+                )}
             </div>
 
             {/* Footer Actions */}

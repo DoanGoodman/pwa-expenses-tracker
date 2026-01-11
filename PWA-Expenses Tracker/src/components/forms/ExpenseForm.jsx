@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Save, X, Edit3, Camera, ChevronDown, ChevronRight } from 'lucide-react'
+import { Save, X, Edit3, ImagePlus, ChevronDown, ChevronRight } from 'lucide-react'
 import { formatAmountInput, parseAmount, formatDecimalInput, parseDecimal, formatDateVN } from '../../utils/formatters'
 import { CategoryIconComponent, getCategoryIconColor } from '../../utils/categoryIcons'
 import UnitBottomSheet, { UNIT_OPTIONS } from './UnitBottomSheet'
 import SelectionBottomSheet from './SelectionBottomSheet'
+import ReceiptScanner from './ReceiptScanner'
+import { useBulkInsertExpenses } from '../../hooks/useSupabase'
 
 const ExpenseForm = ({
     projects,
@@ -11,8 +13,10 @@ const ExpenseForm = ({
     initialData = null,
     onSubmit,
     onCancel,
-    loading = false
+    loading = false,
+    onBulkSaveSuccess
 }) => {
+    const { bulkInsert, loading: bulkLoading } = useBulkInsertExpenses()
     const [inputMethod, setInputMethod] = useState('manual') // 'manual' or 'invoice'
     const [showUnitSheet, setShowUnitSheet] = useState(false)
     const [showSelectionSheet, setShowSelectionSheet] = useState(false)
@@ -123,8 +127,8 @@ const ExpenseForm = ({
                         : 'bg-gray-100 border-2 border-transparent text-gray-500'
                         }`}
                 >
-                    <Camera size={18} />
-                    Chụp hóa đơn
+                    <ImagePlus size={18} />
+                    Tải hóa đơn
                 </button>
             </div>
 
@@ -267,16 +271,19 @@ const ExpenseForm = ({
                     </div>
                 </form>
             ) : (
-                // Invoice Scanner Mode (Coming Soon)
-                <div className="py-20 text-center">
-                    <Camera size={64} className="mx-auto text-gray-300 mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                        Chức năng đang phát triển
-                    </h3>
-                    <p className="text-sm text-gray-500">
-                        Tính năng chụp và quét hóa đơn sẽ sớm có mặt
-                    </p>
-                </div>
+                // Receipt Scanner Mode
+                <ReceiptScanner
+                    projects={projects}
+                    categories={categories}
+                    onBulkSave={async (expensesData) => {
+                        const result = await bulkInsert(expensesData)
+                        if (result.success && onBulkSaveSuccess) {
+                            onBulkSaveSuccess(result.count)
+                        }
+                        return result
+                    }}
+                    loading={bulkLoading}
+                />
             )}
 
             {/* Unit Bottom Sheet */}

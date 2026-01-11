@@ -628,3 +628,57 @@ export const useDashboardStats = (startMonth, endMonth, projectId = null) => {
 
     return { stats, loading }
 }
+
+// Hook để bulk insert nhiều expenses cùng lúc (từ Receipt Scanner)
+export const useBulkInsertExpenses = () => {
+    const [loading, setLoading] = useState(false)
+
+    const bulkInsert = async (expensesArray) => {
+        if (!expensesArray || expensesArray.length === 0) {
+            throw new Error('Không có dữ liệu để lưu')
+        }
+
+        setLoading(true)
+
+        try {
+            if (isDemoMode()) {
+                // Demo mode: add to local array
+                const newExpenses = expensesArray.map((expense, index) => ({
+                    id: `demo-${Date.now()}-${index}`,
+                    ...expense,
+                    created_at: new Date().toISOString()
+                }))
+                demoData.expenses.push(...newExpenses)
+                setLoading(false)
+                return { success: true, count: newExpenses.length }
+            }
+
+            const userId = await getCurrentUserId()
+            if (!userId) {
+                throw new Error('Bạn cần đăng nhập để lưu chi phí')
+            }
+
+            // Add user_id to each expense
+            const dataWithUserId = expensesArray.map(expense => ({
+                ...expense,
+                user_id: userId
+            }))
+
+            const { data, error } = await supabase
+                .from('expenses')
+                .insert(dataWithUserId)
+                .select()
+
+            if (error) throw error
+
+            return { success: true, count: data?.length || 0, data }
+        } catch (error) {
+            console.error('Bulk insert error:', error)
+            throw error
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return { bulkInsert, loading }
+}
