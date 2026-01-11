@@ -2257,8 +2257,8 @@ a.bottom-nav-item {
 /* Expense Form Buttons - Fixed above bottom nav */
 .expense-form-buttons {
     position: fixed;
-    bottom: 65px;
-    /* Height of bottom nav */
+    bottom: 75px;
+    /* Height of bottom nav + spacing */
     left: 0;
     right: 0;
     z-index: 45;
