@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Search, MapPin, X, Calendar, Check } from 'lucide-react'
 import BottomSheet from '../common/BottomSheet'
 import { formatDateVN } from '../../utils/formatters'
+import { CategoryIconComponent, getCategoryIconColor } from '../../utils/categoryIcons'
 
 const SelectionBottomSheet = ({
     isOpen,
@@ -48,14 +49,9 @@ const SelectionBottomSheet = ({
             isOpen={isOpen}
             onClose={onClose}
             title="Thông tin chi phí"
-            maxHeight="85vh" // Cao hơn bình thường để chứa nhiều nội dung
+            maxHeight="85vh"
         >
             <div className="selection-sheet-content">
-
-                {/* 1. Chọn ngày (Đặt lên đầu hoặc dưới cùng? Theo flow nhập liệu nên để đầu hoặc cuối. 
-                       Để cuối cùng danh sách Input hoặc nhóm chung)
-                       Người dùng thường nghĩ: Dự án -> Hạng mục -> Ngày. OK.
-                */}
 
                 {/* --- SELECTION GROUP 1: DỰ ÁN --- */}
                 <div className="sheet-section">
@@ -87,11 +83,11 @@ const SelectionBottomSheet = ({
                             filteredProjects.map(proj => (
                                 <button
                                     key={proj.id}
-                                    className={`project-item-row ${projectId === proj.id ? 'selected' : ''}`}
+                                    className={`project-item-row ${String(projectId) === String(proj.id) ? 'selected' : ''}`}
                                     onClick={() => setProjectId(proj.id)}
                                 >
                                     <span className="project-name">{proj.name}</span>
-                                    {projectId === proj.id && <Check size={16} className="check-icon" />}
+                                    {String(projectId) === String(proj.id) && <Check size={16} className="check-icon" />}
                                 </button>
                             ))
                         ) : (
@@ -112,10 +108,13 @@ const SelectionBottomSheet = ({
                         {categories.map(cat => (
                             <button
                                 key={cat.id}
-                                className={`category-tag-chip ${categoryId === cat.id ? 'selected' : ''}`}
+                                className={`category-tag-chip ${String(categoryId) === String(cat.id) ? 'selected' : ''}`}
                                 onClick={() => setCategoryId(cat.id)}
                             >
-                                {cat.name}
+                                <CategoryIconComponent categoryName={cat.name} size={16} />
+                                <span className={String(categoryId) === String(cat.id) ? '' : getCategoryIconColor(cat.name)}>
+                                    {cat.name}
+                                </span>
                             </button>
                         ))}
                     </div>

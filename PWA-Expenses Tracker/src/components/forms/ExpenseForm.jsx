@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Save, X, Edit3, Camera, ChevronDown, ChevronRight } from 'lucide-react'
 import { formatAmountInput, parseAmount, formatDecimalInput, parseDecimal, formatDateVN } from '../../utils/formatters'
+import { CategoryIconComponent, getCategoryIconColor } from '../../utils/categoryIcons'
 import UnitBottomSheet, { UNIT_OPTIONS } from './UnitBottomSheet'
 import SelectionBottomSheet from './SelectionBottomSheet'
 
@@ -136,20 +137,26 @@ const ExpenseForm = ({
                     >
                         <div className="summary-content">
                             <div className="summary-title">
-                                {projects.find(p => p.id === formData.project_id)?.name || 'Chưa chọn dự án'}
+                                {projects.find(p => String(p.id) === String(formData.project_id))?.name || 'Chưa chọn dự án'}
                             </div>
                             <div className="summary-subtitle">
-                                {categories.find(c => c.id === formData.category_id) ? (
-                                    <span
-                                        className="flex items-center gap-1.5 font-medium"
-                                        style={{ color: categories.find(c => c.id === formData.category_id).color || '#64748b' }}
-                                    >
-                                        <span>{categories.find(c => c.id === formData.category_id).icon}</span>
-                                        <span>{categories.find(c => c.id === formData.category_id).name}</span>
-                                    </span>
-                                ) : (
-                                    <span>Chưa chọn danh mục</span>
-                                )}
+                                {(() => {
+                                    const selectedCategory = categories.find(c => String(c.id) === String(formData.category_id))
+                                    if (selectedCategory) {
+                                        return (
+                                            <span className="flex items-center gap-1.5 font-medium">
+                                                <CategoryIconComponent
+                                                    categoryName={selectedCategory.name}
+                                                    size={14}
+                                                />
+                                                <span className={getCategoryIconColor(selectedCategory.name)}>
+                                                    {selectedCategory.name}
+                                                </span>
+                                            </span>
+                                        )
+                                    }
+                                    return <span className="text-gray-400">Chưa chọn danh mục</span>
+                                })()}
                                 <span className="text-gray-300 mx-1">•</span>
                                 <span>{formatDateVN(formData.date)}</span>
                             </div>
