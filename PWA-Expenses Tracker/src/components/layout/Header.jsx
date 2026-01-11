@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Menu, FileSpreadsheet, FileText, User, LogOut } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
-const Header = ({ title, onExportExcel, onExportPDF }) => {
+const Header = ({ title, onExportExcel, onExportPDF, leftAction }) => {
     const { user, signOut } = useAuth()
     const [showMenuDropdown, setShowMenuDropdown] = useState(false)
     const [showUserDropdown, setShowUserDropdown] = useState(false)
@@ -44,34 +44,40 @@ const Header = ({ title, onExportExcel, onExportPDF }) => {
 
     return (
         <header className="app-header">
-            {/* Menu Button - Only show if export functions exist */}
-            <div className="header-menu" ref={menuRef}>
-                <button
-                    className="header-icon-btn"
-                    onClick={() => setShowMenuDropdown(!showMenuDropdown)}
-                    aria-label="Menu"
-                >
-                    <Menu size={22} />
-                </button>
+            {/* Left Section: Custom Action or Menu */}
+            <div className="header-left-section" ref={menuRef}>
+                {leftAction ? (
+                    leftAction
+                ) : (
+                    <div className="header-menu">
+                        <button
+                            className="header-icon-btn"
+                            onClick={() => setShowMenuDropdown(!showMenuDropdown)}
+                            aria-label="Menu"
+                        >
+                            <Menu size={22} />
+                        </button>
 
-                {/* Menu Dropdown */}
-                {showMenuDropdown && (
-                    <div className="header-dropdown left">
-                        {onExportExcel && (
-                            <button onClick={handleExportExcelClick} className="dropdown-item">
-                                <FileSpreadsheet size={18} />
-                                <span>Xuất Excel</span>
-                            </button>
-                        )}
-                        {onExportPDF && (
-                            <button onClick={handleExportPDFClick} className="dropdown-item">
-                                <FileText size={18} />
-                                <span>Xuất PDF</span>
-                            </button>
-                        )}
-                        {!onExportExcel && !onExportPDF && (
-                            <div className="p-3 text-sm text-gray-500 text-center">
-                                Không có hành động
+                        {/* Menu Dropdown */}
+                        {showMenuDropdown && (
+                            <div className="header-dropdown left">
+                                {onExportExcel && (
+                                    <button onClick={handleExportExcelClick} className="dropdown-item">
+                                        <FileSpreadsheet size={18} />
+                                        <span>Xuất Excel</span>
+                                    </button>
+                                )}
+                                {onExportPDF && (
+                                    <button onClick={handleExportPDFClick} className="dropdown-item">
+                                        <FileText size={18} />
+                                        <span>Xuất PDF</span>
+                                    </button>
+                                )}
+                                {!onExportExcel && !onExportPDF && (
+                                    <div className="p-3 text-sm text-gray-500 text-center">
+                                        Không có hành động
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>

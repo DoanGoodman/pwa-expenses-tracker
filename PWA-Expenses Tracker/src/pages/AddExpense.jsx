@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CheckCircle } from 'lucide-react'
+import { CheckCircle, Plus } from 'lucide-react'
 import Header from '../components/layout/Header'
 import ExpenseForm from '../components/forms/ExpenseForm'
 import AddProjectModal from '../components/forms/AddProjectModal'
@@ -26,10 +26,6 @@ const AddExpense = () => {
         }
     }
 
-    const handleAddProject = () => {
-        setShowAddProjectModal(true)
-    }
-
     const handleCreateProject = async (projectData) => {
         const result = await addProject(projectData)
         if (result.success) {
@@ -37,10 +33,21 @@ const AddExpense = () => {
         }
     }
 
+    // Custom left action for Header: Add Project Button
+    const addProjectButton = (
+        <button
+            className="header-icon-btn"
+            onClick={() => setShowAddProjectModal(true)}
+            aria-label="Thêm dự án"
+        >
+            <Plus size={26} className="text-primary" />
+        </button>
+    )
+
     return (
         <div className="page-container">
-            {/* Header */}
-            <Header title="Thêm chi phí" />
+            {/* Header with Custom Left Action */}
+            <Header title="Thêm chi phí" leftAction={addProjectButton} />
 
             {/* Form Card */}
             <div className="card-soft-lg">
@@ -48,7 +55,6 @@ const AddExpense = () => {
                     projects={projects}
                     categories={categories}
                     onSubmit={handleSubmit}
-                    onAddProject={handleAddProject}
                     loading={loading}
                 />
             </div>

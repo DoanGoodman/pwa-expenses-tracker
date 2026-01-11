@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Save, X, Edit3, Camera, Plus, ChevronDown } from 'lucide-react'
-import { formatAmountInput, parseAmount, formatDecimalInput, parseDecimal } from '../../utils/formatters'
+import { Save, X, Edit3, Camera, ChevronDown, ChevronRight } from 'lucide-react'
+import { formatAmountInput, parseAmount, formatDecimalInput, parseDecimal, formatDateVN } from '../../utils/formatters'
 import UnitBottomSheet, { UNIT_OPTIONS } from './UnitBottomSheet'
+import SelectionBottomSheet from './SelectionBottomSheet'
 
 const ExpenseForm = ({
     projects,
@@ -9,11 +10,11 @@ const ExpenseForm = ({
     initialData = null,
     onSubmit,
     onCancel,
-    loading = false,
-    onAddProject
+    loading = false
 }) => {
     const [inputMethod, setInputMethod] = useState('manual') // 'manual' or 'invoice'
     const [showUnitSheet, setShowUnitSheet] = useState(false)
+    const [showSelectionSheet, setShowSelectionSheet] = useState(false)
     const [formData, setFormData] = useState({
         project_id: '',
         category_id: '',
@@ -128,70 +129,22 @@ const ExpenseForm = ({
 
             {inputMethod === 'manual' ? (
                 <form onSubmit={handleSubmit} className="expense-form-content">
-                    {/* Project Select with Add Button */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                            Dự án <span className="text-red-500">*</span>
-                        </label>
-                        <div className="flex gap-2">
-                            <select
-                                value={formData.project_id}
-                                onChange={(e) => handleChange('project_id', e.target.value)}
-                                className="select-field flex-1"
-                                required
-                            >
-                                <option value="">Chọn dự án</option>
-                                {projects.map(project => (
-                                    <option key={project.id} value={project.id}>
-                                        {project.name}
-                                    </option>
-                                ))}
-                            </select>
-                            {onAddProject && (
-                                <button
-                                    type="button"
-                                    onClick={onAddProject}
-                                    className="add-project-btn"
-                                    title="Thêm dự án mới"
-                                >
-                                    <Plus size={24} strokeWidth={2.5} color="white" />
-                                </button>
-                            )}
+                    {/* Selection Summary Bar (Replaces Project, Category, Date inputs) */}
+                    <div
+                        className="selection-summary-bar"
+                        onClick={() => setShowSelectionSheet(true)}
+                    >
+                        <div className="summary-content">
+                            <div className="summary-title">
+                                {projects.find(p => p.id === formData.project_id)?.name || 'Chưa chọn dự án'}
+                            </div>
+                            <div className="summary-subtitle">
+                                <span>{categories.find(c => c.id === formData.category_id)?.name || 'Chưa chọn danh mục'}</span>
+                                <span className="text-gray-300">•</span>
+                                <span>{formatDateVN(formData.date)}</span>
+                            </div>
                         </div>
-                    </div>
-
-                    {/* Category & Date on same row */}
-                    <div className="category-date-row">
-                        <div className="category-date-field">
-                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                                Danh mục <span className="text-red-500">*</span>
-                            </label>
-                            <select
-                                value={formData.category_id}
-                                onChange={(e) => handleChange('category_id', e.target.value)}
-                                className="select-field"
-                                required
-                            >
-                                <option value="">Chọn</option>
-                                {categories.map(category => (
-                                    <option key={category.id} value={category.id}>
-                                        {category.icon} {category.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="category-date-field">
-                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                                Ngày chi <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                                type="date"
-                                value={formData.date}
-                                onChange={(e) => handleChange('date', e.target.value)}
-                                className="input-field"
-                                required
-                            />
-                        </div>
+                        <ChevronRight className="summary-arrow" size={20} />
                     </div>
 
                     {/* Description */}
@@ -315,6 +268,27 @@ const ExpenseForm = ({
                 onClose={() => setShowUnitSheet(false)}
                 selectedUnit={formData.unit}
                 onSelect={(value) => handleChange('unit', value)}
+            />
+
+            {/* Selection Bottom Sheet */}
+            <SelectionBottomSheet
+                isOpen={showSelectionSheet}
+                onClose={() => setShowSelectionSheet(false)}
+                projects={projects}
+                categories={categories}
+                initialData={{
+                    projectId: formData.project_id,
+                    categoryId: formData.category_id,
+                    date: formData.date
+                }}
+                onApply={(data) => {
+                    setFormData(prev => ({
+                        ...prev,
+                        project_id: data.projectId,
+                        category_id: data.categoryId,
+                        date: data.date
+                    }))
+                }}
             />
         </div>
     )
