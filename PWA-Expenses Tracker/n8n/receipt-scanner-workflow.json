@@ -1,0 +1,120 @@
+{
+    "name": "Receipt Scanner API",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "receipt-scanner",
+                "options": {}
+            },
+            "name": "Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                460,
+                340
+            ]
+        },
+        {
+            "parameters": {
+                "url": "={{ $json.image_url }}",
+                "options": {
+                    "response": {
+                        "response": {
+                            "responseFormat": "file"
+                        }
+                    }
+                }
+            },
+            "name": "Download Image",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                680,
+                340
+            ]
+        },
+        {
+            "parameters": {
+                "modelId": "pixtral-12b-2409",
+                "messages": {
+                    "values": [
+                        {
+                            "content": "Extract data from this receipt image. \nReturn a JSON object with this exact structure:\n{\n  \"date\": \"YYYY-MM-DD\",\n  \"items\": [\n    {\n      \"description\": \"Item name\",\n      \"quantity\": number,\n      \"unit\": \"unit name (kg, m3, bao, cai...)\",\n      \"unit_price\": number (in VND),\n      \"confidence\": number (0-1)\n    }\n  ]\n}\nIf date is missing, use today's date. If unit is missing, guess based on context or leave empty. Return ONLY raw JSON, no markdown formatting.",
+                            "role": "user",
+                            "images": {
+                                "images": [
+                                    {
+                                        "input": "binary",
+                                        "binaryPropertyName": "data"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "jsonOutput": true
+            },
+            "name": "Mistral Vision",
+            "type": "@n8n/n8n-nodes-langchain.chainOpenAi",
+            "typeVersion": 1,
+            "position": [
+                900,
+                340
+            ],
+            "credentials": {
+                "openAiApi": {
+                    "id": "YOUR_MISTRAL_CREDENTIAL_ID",
+                    "name": "Mistral API"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "options": {}
+            },
+            "name": "Respond to Frontend",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1,
+            "position": [
+                1120,
+                340
+            ]
+        }
+    ],
+    "connections": {
+        "Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Download Image",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Download Image": {
+            "main": [
+                [
+                    {
+                        "node": "Mistral Vision",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Mistral Vision": {
+            "main": [
+                [
+                    {
+                        "node": "Respond to Frontend",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

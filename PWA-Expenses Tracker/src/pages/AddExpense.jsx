@@ -56,6 +56,13 @@ const AddExpense = () => {
                     categories={categories}
                     onSubmit={handleSubmit}
                     loading={loading}
+                    onBulkSaveSuccess={(count) => {
+                        setShowSuccess(true)
+                        setTimeout(() => {
+                            setShowSuccess(false)
+                            navigate('/expenses')
+                        }, 1500)
+                    }}
                 />
             </div>
 
