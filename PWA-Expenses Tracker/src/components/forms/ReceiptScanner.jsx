@@ -147,7 +147,7 @@ const ReceiptScanner = ({
             unit: item.unit || null,
             unit_price: item.unit_price || 0,
             amount: (item.quantity || 1) * (item.unit_price || 0),
-            receipt_url: imageUrl
+            image_url: imageUrl
         }))
 
         try {
