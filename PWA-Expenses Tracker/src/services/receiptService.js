@@ -114,13 +114,15 @@ export const uploadToR2 = async (file, userId) => {
 
         // Handle specific HTTP error codes
         if (!response.ok) {
+            // Try to get actual error message from Worker response
+            const errorData = await response.json().catch(() => ({}))
+
             if (response.status === 403) {
-                throw new Error('Hệ thống nhận diện đây không phải là hóa đơn hợp lệ. Vui lòng chụp lại rõ ràng hơn.')
+                throw new Error(errorData.error || 'Hệ thống nhận diện đây không phải là hóa đơn hợp lệ. Vui lòng chụp lại rõ ràng hơn.')
             }
             if (response.status === 500) {
-                throw new Error('Lỗi hệ thống. Vui lòng thử lại sau.')
+                throw new Error(errorData.error || 'Lỗi hệ thống. Vui lòng thử lại sau.')
             }
-            const errorData = await response.json().catch(() => ({}))
             throw new Error(errorData.error || `Upload thất bại với mã lỗi ${response.status}`)
         }
 

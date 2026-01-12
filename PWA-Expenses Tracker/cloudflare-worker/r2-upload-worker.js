@@ -1,178 +1,113 @@
 /**
- * Cloudflare Worker - R2 Direct Upload
+ * Cloudflare Worker - R2 Direct Upload with AI Classification
  * 
- * Bindings required in wrangler.toml or Cloudflare Dashboard:
- * - MY_BUCKET: R2 Bucket binding (cost-tracker-pwa)
- * - R2_PUBLIC_DOMAIN: Secret/Variable (https://pub-e97682763d804a55a5acbc3f5a7587a3.r2.dev)
+ * Bindings required in Cloudflare Dashboard:
+ * - MY_BUCKET: R2 Bucket binding
+ * - AI: Workers AI binding (for image classification)
+ * - R2_PUBLIC_DOMAIN: Environment variable (e.g., https://pub-xxx.r2.dev)
  * 
- * Usage:
- * PUT https://r2-signer.aiqswings87.workers.dev?file=receipts/user123/1234567890.jpg
- * Body: binary image data
- * 
- * Returns: { success: true, url: "https://pub-xxx.r2.dev/receipts/..." }
+ * Flow:
+ * 1. Receive image upload
+ * 2. AI classifies image (must look like document/receipt)
+ * 3. If valid, save to R2 and return public URL
+ * 4. If not valid, return 403
  */
-
-const CORS_HEADERS = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, PUT, POST, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Max-Age': '86400',
-};
 
 export default {
-    async fetch(request, env, ctx) {
+    async fetch(request, env) {
+        const corsHeaders = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "PUT, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+        };
+
         // Handle CORS preflight
-        if (request.method === 'OPTIONS') {
-            return new Response(null, {
-                status: 204,
-                headers: CORS_HEADERS
-            });
+        if (request.method === "OPTIONS") {
+            return new Response(null, { headers: corsHeaders });
         }
 
-        const url = new URL(request.url);
+        if (request.method === "PUT") {
+            const url = new URL(request.url);
+            const fileName = url.searchParams.get('file');
 
-        // Health check
-        if (request.method === 'GET' && url.pathname === '/') {
-            return jsonResponse({
-                status: 'ok',
-                message: 'R2 Upload Worker is running',
-                publicDomain: env.R2_PUBLIC_DOMAIN || 'NOT_SET'
-            });
+            if (!fileName) {
+                return jsonResponse({ success: false, error: "Thiếu tham số ?file=" }, 400, corsHeaders);
+            }
+
+            try {
+                // Read image data from request
+                const imageBuffer = await request.arrayBuffer();
+
+                if (!imageBuffer || imageBuffer.byteLength === 0) {
+                    return jsonResponse({ success: false, error: "File rỗng" }, 400, corsHeaders);
+                }
+
+                // Check file size (max 5MB)
+                if (imageBuffer.byteLength > 5 * 1024 * 1024) {
+                    return jsonResponse({ success: false, error: "File quá lớn. Tối đa 5MB." }, 400, corsHeaders);
+                }
+
+                // --- GATE 1: AI IMAGE CLASSIFICATION (ResNet-50) ---
+                if (env.AI) {
+                    try {
+                        const aiResponse = await env.AI.run('@cf/microsoft/resnet-50', {
+                            image: new Uint8Array(imageBuffer)
+                        });
+
+                        // Labels considered as "documents/receipts"
+                        const validLabels = ['paper', 'document', 'text', 'receipt', 'menu', 'label', 'envelope', 'notebook', 'book'];
+
+                        // Check if AI detects document-like content
+                        const isLikelyDocument = aiResponse && aiResponse.some(prediction =>
+                            validLabels.some(label => prediction.label.toLowerCase().includes(label))
+                        );
+
+                        // If NOT a document -> REJECT with 403
+                        if (!isLikelyDocument) {
+                            return jsonResponse({
+                                success: false,
+                                error: "Ảnh này không giống hóa đơn hoặc tài liệu hợp lệ."
+                            }, 403, corsHeaders);
+                        }
+                    } catch (aiError) {
+                        console.error('AI classification error:', aiError);
+                        // If AI fails, still allow upload (fail-open for better UX)
+                        // You can change to fail-close by returning error here
+                    }
+                }
+
+                // --- GATE 2: SAVE TO R2 ---
+                await env.MY_BUCKET.put(fileName, imageBuffer, {
+                    httpMetadata: { contentType: "image/jpeg" }
+                });
+
+                // Get public domain from environment variable
+                const publicDomain = env.R2_PUBLIC_DOMAIN || 'https://pub-e97682763d804a55a5acbc3f5a7587a3.r2.dev';
+                const publicUrl = `${publicDomain}/${fileName}`;
+
+                return jsonResponse({
+                    success: true,
+                    url: publicUrl,
+                    filename: fileName,
+                    size: imageBuffer.byteLength
+                }, 200, corsHeaders);
+
+            } catch (err) {
+                console.error('Upload error:', err);
+                return jsonResponse({
+                    success: false,
+                    error: err.message || "Lỗi không xác định"
+                }, 500, corsHeaders);
+            }
         }
 
-        // Handle PUT - Direct upload to R2
-        if (request.method === 'PUT') {
-            return handleUpload(request, env, url);
-        }
-
-        // Handle GET with file param - Get file info
-        if (request.method === 'GET' && url.searchParams.has('file')) {
-            return handleGetInfo(request, env, url);
-        }
-
-        return jsonResponse({ error: 'Method not allowed' }, 405);
+        return jsonResponse({ success: false, error: "Chỉ chấp nhận PUT" }, 405, corsHeaders);
     }
 };
 
-/**
- * Handle direct file upload to R2
- */
-async function handleUpload(request, env, url) {
-    try {
-        const filename = url.searchParams.get('file');
-
-        if (!filename) {
-            return jsonResponse({ error: 'Missing ?file parameter' }, 400);
-        }
-
-        // Validate filename format
-        if (!isValidFilename(filename)) {
-            return jsonResponse({ error: 'Invalid filename format. Expected: receipts/{userId}/{timestamp}.jpg' }, 400);
-        }
-
-        // Get content type from header or default to image/jpeg
-        const contentType = request.headers.get('Content-Type') || 'image/jpeg';
-
-        // Get the file body
-        const body = await request.arrayBuffer();
-
-        if (!body || body.byteLength === 0) {
-            return jsonResponse({ error: 'Empty file body' }, 400);
-        }
-
-        // Check file size (max 5MB)
-        if (body.byteLength > 5 * 1024 * 1024) {
-            return jsonResponse({ error: 'File too large. Max 5MB allowed.' }, 400);
-        }
-
-        // Upload to R2 using native binding
-        await env.MY_BUCKET.put(filename, body, {
-            httpMetadata: {
-                contentType: contentType
-            }
-        });
-
-        // Get public domain from environment variable
-        const publicDomain = env.R2_PUBLIC_DOMAIN || 'https://pub-e97682763d804a55a5acbc3f5a7587a3.r2.dev';
-
-        // Construct full public URL
-        const publicUrl = `${publicDomain}/${filename}`;
-
-        return jsonResponse({
-            success: true,
-            url: publicUrl,
-            filename: filename,
-            size: body.byteLength,
-            contentType: contentType
-        });
-
-    } catch (error) {
-        console.error('Upload error:', error);
-        return jsonResponse({
-            success: false,
-            error: 'Upload failed',
-            details: error.message
-        }, 500);
-    }
-}
-
-/**
- * Handle file info request
- */
-async function handleGetInfo(request, env, url) {
-    try {
-        const filename = url.searchParams.get('file');
-
-        if (!filename) {
-            return jsonResponse({ error: 'Missing ?file parameter' }, 400);
-        }
-
-        const object = await env.MY_BUCKET.head(filename);
-
-        if (!object) {
-            return jsonResponse({ error: 'File not found' }, 404);
-        }
-
-        const publicDomain = env.R2_PUBLIC_DOMAIN || 'https://pub-e97682763d804a55a5acbc3f5a7587a3.r2.dev';
-
-        return jsonResponse({
-            exists: true,
-            filename: filename,
-            url: `${publicDomain}/${filename}`,
-            size: object.size,
-            uploaded: object.uploaded,
-            contentType: object.httpMetadata?.contentType
-        });
-
-    } catch (error) {
-        console.error('Get info error:', error);
-        return jsonResponse({ error: 'Failed to get file info' }, 500);
-    }
-}
-
-/**
- * Validate filename to prevent path traversal
- * Allowed pattern: receipts/{userId}/{timestamp}.{jpg|jpeg|png|webp}
- */
-function isValidFilename(filename) {
-    // Reject path traversal attempts
-    if (filename.includes('..') || filename.startsWith('/')) {
-        return false;
-    }
-    // Only allow specific patterns: receipts/userId/timestamp.extension
-    const validPattern = /^receipts\/[a-zA-Z0-9-_]+\/\d+\.(jpg|jpeg|png|webp)$/i;
-    return validPattern.test(filename);
-}
-
-/**
- * JSON response helper with CORS headers
- */
-function jsonResponse(data, status = 200) {
+function jsonResponse(data, status, corsHeaders) {
     return new Response(JSON.stringify(data), {
         status,
-        headers: {
-            ...CORS_HEADERS,
-            'Content-Type': 'application/json'
-        }
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
 }
