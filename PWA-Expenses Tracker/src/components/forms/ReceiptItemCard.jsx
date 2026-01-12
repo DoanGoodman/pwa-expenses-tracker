@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Trash2, AlertTriangle } from 'lucide-react'
-import { formatAmountInput, parseAmount, formatDecimalInput, parseDecimal } from '../../utils/formatters'
+import { formatAmountInput, parseAmount } from '../../utils/formatters'
 
 const ReceiptItemCard = ({
     item,
@@ -8,16 +8,35 @@ const ReceiptItemCard = ({
     onUpdate,
     onDelete
 }) => {
+    // Format quantity with thousand separators (34439.52 -> 34,439.52)
+    const formatQuantityDisplay = (value) => {
+        const num = parseFloat(value)
+        if (isNaN(num)) return String(value)
+        // Use en-US locale for comma as thousand separator
+        return new Intl.NumberFormat('en-US', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2
+        }).format(num)
+    }
+
     const [localData, setLocalData] = useState({
         description: item.description || '',
-        quantity: String(item.quantity || 1),
+        quantity: formatQuantityDisplay(item.quantity || 1),
         unit: item.unit || '',
         unit_price: item.unit_price ? formatAmountInput(item.unit_price) : ''
     })
     const [hasBeenEdited, setHasBeenEdited] = useState(false)
 
+    // Parse quantity string (remove thousand separators before parsing)
+    const parseQuantity = (value) => {
+        if (!value) return 0
+        // Remove thousand separator commas, keep decimal dot
+        const cleaned = String(value).replace(/,/g, '')
+        return parseFloat(cleaned) || 0
+    }
+
     // Calculate amount
-    const calculatedAmount = (parseDecimal(localData.quantity) || 0) * (parseAmount(localData.unit_price) || 0)
+    const calculatedAmount = (parseQuantity(localData.quantity) || 0) * (parseAmount(localData.unit_price) || 0)
 
     // Determine if this item needs review (low confidence)
     const needsReview = item.confidence < 0.8 && !hasBeenEdited
@@ -27,7 +46,7 @@ const ReceiptItemCard = ({
         onUpdate(item.id, {
             ...item,
             description: localData.description,
-            quantity: parseDecimal(localData.quantity) || 1,
+            quantity: parseQuantity(localData.quantity) || 1,
             unit: localData.unit,
             unit_price: parseAmount(localData.unit_price) || 0,
             amount: calculatedAmount
@@ -41,9 +60,9 @@ const ReceiptItemCard = ({
             value = formatAmountInput(value)
         }
         if (field === 'quantity') {
-            if (!value.endsWith('.') && !value.endsWith(',')) {
-                value = formatDecimalInput(value)
-            }
+            // Allow typing, but don't format comma-separated input while typing
+            // Just allow digits, dots, and commas
+            value = value.replace(/[^0-9.,]/g, '')
         }
 
         setLocalData(prev => ({ ...prev, [field]: value }))

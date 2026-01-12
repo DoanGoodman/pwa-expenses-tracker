@@ -245,66 +245,69 @@ const ReceiptScanner = ({
     // Review stage
     return (
         <div className="receipt-scanner-review expense-form-content">
-            {/* Image thumbnail + zoom */}
-            <div className="flex items-start gap-4 mb-4">
-                <button
-                    type="button"
-                    onClick={() => setShowZoom(true)}
-                    className="relative w-20 h-20 rounded-lg overflow-hidden border-2 border-gray-200 flex-shrink-0 group"
+            {/* STICKY HEADER: Image thumbnail + date + project/category selector */}
+            <div className="receipt-sticky-header">
+                {/* Image thumbnail + zoom */}
+                <div className="flex items-start gap-4 mb-4">
+                    <button
+                        type="button"
+                        onClick={() => setShowZoom(true)}
+                        className="relative w-20 h-20 rounded-lg overflow-hidden border-2 border-gray-200 flex-shrink-0 group"
+                    >
+                        <img
+                            src={imagePreview || imageUrl}
+                            alt="Hóa đơn"
+                            className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity">
+                            <ZoomIn size={20} className="text-white" />
+                        </div>
+                    </button>
+
+                    <div className="flex-1">
+                        <div className="text-sm text-gray-500 mb-1">Ngày hóa đơn</div>
+                        <input
+                            type="date"
+                            value={receiptDate}
+                            onChange={(e) => setReceiptDate(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary"
+                        />
+                    </div>
+                </div>
+
+                {/* Global Project/Category Selector */}
+                <div
+                    className="selection-summary-bar mb-4"
+                    onClick={() => setShowSelectionSheet(true)}
                 >
-                    <img
-                        src={imagePreview || imageUrl}
-                        alt="Hóa đơn"
-                        className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity">
-                        <ZoomIn size={20} className="text-white" />
-                    </div>
-                </button>
-
-                <div className="flex-1">
-                    <div className="text-sm text-gray-500 mb-1">Ngày hóa đơn</div>
-                    <input
-                        type="date"
-                        value={receiptDate}
-                        onChange={(e) => setReceiptDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary"
-                    />
-                </div>
-            </div>
-
-            {/* Global Project/Category Selector */}
-            <div
-                className="selection-summary-bar mb-4"
-                onClick={() => setShowSelectionSheet(true)}
-            >
-                <div className="summary-content">
-                    <div className="summary-title">
-                        {selectedProject?.name || 'Chọn dự án chung *'}
-                    </div>
-                    <div className="summary-subtitle">
-                        {selectedCategory ? (
-                            <span className="flex items-center gap-1.5 font-medium">
-                                <CategoryIconComponent categoryName={selectedCategory.name} size={14} />
-                                <span className={getCategoryIconColor(selectedCategory.name)}>
-                                    {selectedCategory.name}
+                    <div className="summary-content">
+                        <div className="summary-title">
+                            {selectedProject?.name || 'Chọn dự án chung *'}
+                        </div>
+                        <div className="summary-subtitle">
+                            {selectedCategory ? (
+                                <span className="flex items-center gap-1.5 font-medium">
+                                    <CategoryIconComponent categoryName={selectedCategory.name} size={14} />
+                                    <span className={getCategoryIconColor(selectedCategory.name)}>
+                                        {selectedCategory.name}
+                                    </span>
                                 </span>
-                            </span>
-                        ) : (
-                            <span className="text-gray-400">Chọn danh mục chung *</span>
-                        )}
+                            ) : (
+                                <span className="text-gray-400">Chọn danh mục chung *</span>
+                            )}
+                        </div>
                     </div>
+                    <span className="text-gray-400">▶</span>
                 </div>
-                <span className="text-gray-400">▶</span>
-            </div>
 
-            {/* Error message */}
-            {error && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm flex items-center gap-2">
-                    <AlertCircle size={18} />
-                    {error}
-                </div>
-            )}
+                {/* Error message - also in sticky area */}
+                {error && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm flex items-center gap-2">
+                        <AlertCircle size={18} />
+                        {error}
+                    </div>
+                )}
+            </div>
 
             {/* Items list */}
             <div className="space-y-3 mb-4">
