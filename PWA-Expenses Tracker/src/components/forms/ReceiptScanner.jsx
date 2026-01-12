@@ -333,11 +333,11 @@ const ReceiptScanner = ({
             </button>
 
             {/* Auto-sum display */}
-            <div className="mt-4 p-4 bg-gradient-to-r from-teal-50 to-emerald-50 rounded-xl">
+            <div className="mt-4 mb-24 p-4 bg-gradient-to-r from-teal-50 to-emerald-50 rounded-xl">
                 <div className="flex items-center justify-between">
                     <span className="text-gray-600 font-medium">Tổng cộng ({items.length} mục)</span>
                     <span className="text-xl font-bold text-teal-700">
-                        {new Intl.NumberFormat('vi-VN').format(total)} đ
+                        {new Intl.NumberFormat('en-US').format(Math.round(total))} đ
                     </span>
                 </div>
             </div>
