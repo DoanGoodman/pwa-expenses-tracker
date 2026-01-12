@@ -76,8 +76,8 @@ const ReceiptScanner = ({
                 throw new Error(analysisResult.error || 'Analysis failed')
             }
 
-            // Set extracted data
-            setReceiptDate(analysisResult.data.date)
+            // Set extracted data - Always use today's date instead of AI-extracted date
+            setReceiptDate(new Date().toISOString().split('T')[0])
             setItems(analysisResult.data.items.map(item => ({
                 ...item,
                 id: item.id || crypto.randomUUID()
