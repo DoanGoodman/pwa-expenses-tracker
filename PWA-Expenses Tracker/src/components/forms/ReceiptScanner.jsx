@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import { ImagePlus, Save, Plus, ZoomIn, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
-import { compressImage, uploadToR2, analyzeReceipt, calculateTotal } from '../../services/receiptService'
+import { compressImage, uploadToR2, analyzeReceipt, calculateTotal, generateFileHash, checkDuplicateHash } from '../../services/receiptService'
 import ReceiptItemCard from './ReceiptItemCard'
 import ImageZoomModal from '../common/ImageZoomModal'
 import SelectionBottomSheet from './SelectionBottomSheet'
@@ -10,6 +10,7 @@ import { CategoryIconComponent, getCategoryIconColor } from '../../utils/categor
 // Processing stages for UI feedback
 const STAGES = {
     IDLE: 'idle',
+    HASHING: 'hashing',
     COMPRESSING: 'compressing',
     UPLOADING: 'uploading',
     ANALYZING: 'analyzing',
@@ -35,6 +36,7 @@ const ReceiptScanner = ({
     const [error, setError] = useState(null)
     const [showZoom, setShowZoom] = useState(false)
     const [showSelectionSheet, setShowSelectionSheet] = useState(false)
+    const [fileHash, setFileHash] = useState(null) // Store file hash for saving
 
     // Global settings for all items
     const [globalSettings, setGlobalSettings] = useState({
@@ -48,12 +50,24 @@ const ReceiptScanner = ({
         if (!file) return
 
         setError(null)
+        setFileHash(null)
 
         // Show preview immediately
         const previewUrl = URL.createObjectURL(file)
         setImagePreview(previewUrl)
 
         try {
+            // Stage 0: Generate file hash for duplicate detection
+            setStage(STAGES.HASHING)
+            const hash = await generateFileHash(file)
+            setFileHash(hash)
+
+            // Check for duplicate
+            const duplicateCheck = await checkDuplicateHash(hash)
+            if (duplicateCheck.exists) {
+                throw new Error('Hóa đơn này đã được tải lên trước đó. Vui lòng kiểm tra lại!')
+            }
+
             // Stage 1: Compress image
             setStage(STAGES.COMPRESSING)
             const compressedFile = await compressImage(file)
@@ -76,8 +90,8 @@ const ReceiptScanner = ({
                 throw new Error(analysisResult.error || 'Analysis failed')
             }
 
-            // Set extracted data - Always use today's date instead of AI-extracted date
-            setReceiptDate(new Date().toISOString().split('T')[0])
+            // Set extracted data - use AI-extracted date
+            setReceiptDate(analysisResult.data.date || new Date().toISOString().split('T')[0])
             setItems(analysisResult.data.items.map(item => ({
                 ...item,
                 id: item.id || crypto.randomUUID()
@@ -90,6 +104,7 @@ const ReceiptScanner = ({
             console.error('Receipt processing error:', err)
             setError(err.message)
             setStage(STAGES.IDLE)
+            setFileHash(null)
         }
 
         // Reset file input
@@ -147,7 +162,8 @@ const ReceiptScanner = ({
             unit: item.unit || null,
             unit_price: item.unit_price || 0,
             amount: (item.quantity || 1) * (item.unit_price || 0),
-            image_url: imageUrl
+            image_url: imageUrl,
+            file_hash: fileHash // Store hash for duplicate detection
         }))
 
         try {
@@ -170,6 +186,7 @@ const ReceiptScanner = ({
         setReceiptDate(new Date().toISOString().split('T')[0])
         setGlobalSettings({ project_id: '', category_id: '' })
         setError(null)
+        setFileHash(null)
     }
 
     // Calculate total
@@ -209,8 +226,8 @@ const ReceiptScanner = ({
         )
     }
 
-    // Processing stages (compressing, uploading, analyzing)
-    if ([STAGES.COMPRESSING, STAGES.UPLOADING, STAGES.ANALYZING].includes(stage)) {
+    // Processing stages (hashing, compressing, uploading, analyzing)
+    if ([STAGES.HASHING, STAGES.COMPRESSING, STAGES.UPLOADING, STAGES.ANALYZING].includes(stage)) {
         return (
             <div className="receipt-scanner-processing expense-form-content">
                 {/* Image preview */}
@@ -232,6 +249,7 @@ const ReceiptScanner = ({
                     <div className="inline-flex items-center gap-3 px-6 py-3 bg-teal-50 rounded-full text-teal-700">
                         <Loader2 size={20} className="animate-spin" />
                         <span className="font-medium">
+                            {stage === STAGES.HASHING && 'Đang kiểm tra trùng lặp...'}
                             {stage === STAGES.COMPRESSING && 'Đang nén ảnh...'}
                             {stage === STAGES.UPLOADING && 'Đang tải lên...'}
                             {stage === STAGES.ANALYZING && 'Đang phân tích dữ liệu...'}

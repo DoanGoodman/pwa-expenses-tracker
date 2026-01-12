@@ -1,8 +1,58 @@
 import imageCompression from 'browser-image-compression'
+import { supabase, isDemoMode } from '../lib/supabase'
 
 // R2 Upload Configuration
 const R2_API_ENDPOINT = import.meta.env.VITE_R2_PRESIGNED_API || ''
 const N8N_WEBHOOK_URL = import.meta.env.VITE_N8N_WEBHOOK_URL || ''
+
+/**
+ * Generate SHA-256 hash from file using Web Crypto API
+ * @param {File} file - Original image file
+ * @returns {Promise<string>} - Hex string of SHA-256 hash
+ */
+export const generateFileHash = async (file) => {
+    try {
+        const arrayBuffer = await file.arrayBuffer()
+        const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer)
+        const hashArray = Array.from(new Uint8Array(hashBuffer))
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+        console.log('File hash generated:', hashHex.substring(0, 16) + '...')
+        return hashHex
+    } catch (error) {
+        console.error('Error generating file hash:', error)
+        throw new Error('Không thể tạo mã xác thực cho ảnh. Vui lòng thử lại.')
+    }
+}
+
+/**
+ * Check if a file hash already exists in Supabase
+ * @param {string} fileHash - SHA-256 hash of the file
+ * @returns {Promise<{exists: boolean, error?: string}>}
+ */
+export const checkDuplicateHash = async (fileHash) => {
+    if (isDemoMode()) {
+        // In demo mode, skip duplicate check
+        return { exists: false }
+    }
+
+    try {
+        const { data, error } = await supabase
+            .from('expenses')
+            .select('id')
+            .eq('file_hash', fileHash)
+            .limit(1)
+
+        if (error) {
+            console.error('Error checking duplicate hash:', error)
+            throw new Error('Không thể kiểm tra trùng lặp. Vui lòng thử lại.')
+        }
+
+        return { exists: data && data.length > 0 }
+    } catch (error) {
+        console.error('Duplicate check failed:', error)
+        throw error
+    }
+}
 
 /**
  * Compress image before upload
