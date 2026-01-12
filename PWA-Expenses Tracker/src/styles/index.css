@@ -2672,7 +2672,8 @@ a.bottom-nav-item {
     padding: 16px;
     transition: all 0.3s ease;
     max-width: 456px;
-    margin: 0 auto;
+    margin: 0 auto 16px auto;
+    /* Added bottom margin for spacing */
 }
 
 .receipt-item-card.flash-warning {

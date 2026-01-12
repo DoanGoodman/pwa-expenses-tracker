@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import Header from '../components/layout/Header'
 import ExpenseSearchBar from '../components/expenses/ExpenseSearchBar'
 import SortToolbar from '../components/expenses/SortToolbar'
@@ -11,6 +12,8 @@ import { exportToExcel, exportToPDF } from '../utils/exportHelpers'
 import { X, CheckCircle } from 'lucide-react'
 
 const ExpenseList = () => {
+    const location = useLocation()
+
     // Filter states
     const [selectedProject, setSelectedProject] = useState('all')
     const [selectedCategories, setSelectedCategories] = useState([])
@@ -40,6 +43,11 @@ const ExpenseList = () => {
     })
     const { deleteExpense } = useDeleteExpense()
     const { updateExpense, loading: updating } = useUpdateExpense()
+
+    // Refetch when navigating to this page (e.g., after bulk save from receipt scanner)
+    useEffect(() => {
+        refetch()
+    }, [location.key])
 
     // Handle filter change from Bottom Sheet
     const handleFilterChange = (filters) => {
