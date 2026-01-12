@@ -57,15 +57,15 @@ export default {
 
                         // Ask LLaVA if this is a receipt/invoice
                         const aiResponse = await env.AI.run('@cf/llava-hf/llava-1.5-7b-hf', {
-                            image: new Uint8Array(imageBuffer),
+                            image: [...new Uint8Array(imageBuffer)], // Convert to regular array
                             prompt: "Is this image a receipt, invoice, or bill? Answer only YES or NO.",
                             max_tokens: 10
                         });
 
                         console.log('LLaVA response:', aiResponse);
 
-                        // Check if response contains YES
-                        const responseText = (aiResponse?.response || aiResponse?.description || '').toLowerCase();
+                        // Check if response contains YES (check both response and description fields, trim spaces)
+                        const responseText = (aiResponse?.response || aiResponse?.description || '').trim().toLowerCase();
                         const isReceipt = responseText.includes('yes');
 
                         if (!isReceipt) {
@@ -80,7 +80,7 @@ export default {
                         // Fallback: Use ResNet-50 for basic document detection
                         try {
                             const resnetResponse = await env.AI.run('@cf/microsoft/resnet-50', {
-                                image: new Uint8Array(imageBuffer)
+                                image: [...new Uint8Array(imageBuffer)] // Convert to regular array
                             });
 
                             const validLabels = ['paper', 'document', 'text', 'receipt', 'menu', 'label', 'envelope', 'notebook', 'book', 'web_site', 'letter_opener'];
