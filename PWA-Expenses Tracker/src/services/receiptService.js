@@ -112,16 +112,23 @@ export const uploadToR2 = async (file, userId) => {
             }
         })
 
+        // Handle specific HTTP error codes
         if (!response.ok) {
+            if (response.status === 403) {
+                throw new Error('Hệ thống nhận diện đây không phải là hóa đơn hợp lệ. Vui lòng chụp lại rõ ràng hơn.')
+            }
+            if (response.status === 500) {
+                throw new Error('Lỗi hệ thống. Vui lòng thử lại sau.')
+            }
             const errorData = await response.json().catch(() => ({}))
-            throw new Error(errorData.error || `Upload failed with status ${response.status}`)
+            throw new Error(errorData.error || `Upload thất bại với mã lỗi ${response.status}`)
         }
 
         const result = await response.json()
 
-        // Worker returns { success: true, url: "https://pub-xxx.r2.dev/receipts/..." }
+        // Only proceed if success: true
         if (!result.success) {
-            throw new Error(result.error || 'Upload failed')
+            throw new Error(result.error || 'Upload thất bại')
         }
 
         console.log('Upload successful:', result.url)
