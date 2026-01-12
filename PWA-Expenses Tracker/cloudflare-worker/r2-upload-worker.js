@@ -1,16 +1,16 @@
 /**
- * Cloudflare Worker - R2 Direct Upload with AI Classification
+ * Cloudflare Worker - R2 Direct Upload with AI Receipt Validation
  * 
  * Bindings required in Cloudflare Dashboard:
  * - MY_BUCKET: R2 Bucket binding
- * - AI: Workers AI binding (for image classification)
+ * - AI: Workers AI binding (for LLaVA vision-language model)
  * - R2_PUBLIC_DOMAIN: Environment variable (e.g., https://pub-xxx.r2.dev)
  * 
  * Flow:
  * 1. Receive image upload
- * 2. AI classifies image (must look like document/receipt)
- * 3. If valid, save to R2 and return public URL
- * 4. If not valid, return 403
+ * 2. AI (LLaVA) analyzes: "Is this a receipt/invoice/bill?"
+ * 3. If YES, save to R2 and return public URL
+ * 4. If NO, return 403
  */
 
 export default {
@@ -47,32 +47,61 @@ export default {
                     return jsonResponse({ success: false, error: "File quá lớn. Tối đa 5MB." }, 400, corsHeaders);
                 }
 
-                // --- GATE 1: AI IMAGE CLASSIFICATION (ResNet-50) ---
+                // --- GATE 1: AI RECEIPT VALIDATION using LLaVA ---
                 if (env.AI) {
                     try {
-                        const aiResponse = await env.AI.run('@cf/microsoft/resnet-50', {
-                            image: new Uint8Array(imageBuffer)
-                        });
-
-                        // Labels considered as "documents/receipts"
-                        const validLabels = ['paper', 'document', 'text', 'receipt', 'menu', 'label', 'envelope', 'notebook', 'book'];
-
-                        // Check if AI detects document-like content
-                        const isLikelyDocument = aiResponse && aiResponse.some(prediction =>
-                            validLabels.some(label => prediction.label.toLowerCase().includes(label))
+                        // Convert buffer to base64 for LLaVA
+                        const base64Image = btoa(
+                            new Uint8Array(imageBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
                         );
 
-                        // If NOT a document -> REJECT with 403
-                        if (!isLikelyDocument) {
+                        // Ask LLaVA if this is a receipt/invoice
+                        const aiResponse = await env.AI.run('@cf/llava-hf/llava-1.5-7b-hf', {
+                            image: new Uint8Array(imageBuffer),
+                            prompt: "Is this image a receipt, invoice, or bill? Answer only YES or NO.",
+                            max_tokens: 10
+                        });
+
+                        console.log('LLaVA response:', aiResponse);
+
+                        // Check if response contains YES
+                        const responseText = (aiResponse?.response || aiResponse?.description || '').toLowerCase();
+                        const isReceipt = responseText.includes('yes');
+
+                        if (!isReceipt) {
                             return jsonResponse({
                                 success: false,
-                                error: "Ảnh này không giống hóa đơn hoặc tài liệu hợp lệ."
+                                error: "Ảnh này không phải hóa đơn hoặc chứng từ. Vui lòng chụp lại."
                             }, 403, corsHeaders);
                         }
+
                     } catch (aiError) {
-                        console.error('AI classification error:', aiError);
-                        // If AI fails, still allow upload (fail-open for better UX)
-                        // You can change to fail-close by returning error here
+                        console.error('AI validation error:', aiError);
+                        // Fallback: Use ResNet-50 for basic document detection
+                        try {
+                            const resnetResponse = await env.AI.run('@cf/microsoft/resnet-50', {
+                                image: new Uint8Array(imageBuffer)
+                            });
+
+                            const validLabels = ['paper', 'document', 'text', 'receipt', 'menu', 'label', 'envelope', 'notebook', 'book', 'web_site', 'letter_opener'];
+                            const isLikelyDocument = resnetResponse && resnetResponse.some(prediction =>
+                                validLabels.some(label => prediction.label.toLowerCase().includes(label))
+                            );
+
+                            if (!isLikelyDocument) {
+                                return jsonResponse({
+                                    success: false,
+                                    error: "Không nhận diện được hóa đơn trong ảnh."
+                                }, 403, corsHeaders);
+                            }
+                        } catch (resnetError) {
+                            console.error('Fallback ResNet also failed:', resnetError);
+                            // Both AI methods failed - reject to be safe (fail-closed)
+                            return jsonResponse({
+                                success: false,
+                                error: "Không thể xác minh nội dung ảnh. Vui lòng thử lại."
+                            }, 500, corsHeaders);
+                        }
                     }
                 }
 
