@@ -29,7 +29,8 @@ export const compressImage = async (file) => {
 }
 
 /**
- * Get presigned URL from backend and upload image to R2
+ * Upload image directly to R2 via Cloudflare Worker
+ * Worker URL: PUT https://r2-signer.aiqswings87.workers.dev?file=receipts/{userId}/{timestamp}.jpg
  * @param {File} file - Image file to upload
  * @param {string} userId - User ID for organizing files
  * @returns {Promise<{success: boolean, imageUrl?: string, error?: string}>}
@@ -45,25 +46,15 @@ export const uploadToR2 = async (file, userId) => {
     }
 
     try {
-        // Step 1: Get presigned URL from backend
+        // Generate unique filename with user ID and timestamp
         const filename = `receipts/${userId}/${Date.now()}.jpg`
-        const presignResponse = await fetch(`${R2_API_ENDPOINT}/presign`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                filename,
-                contentType: 'image/jpeg'
-            })
-        })
 
-        if (!presignResponse.ok) {
-            throw new Error('Failed to get presigned URL')
-        }
+        // Direct PUT upload to Cloudflare Worker
+        const uploadUrl = `${R2_API_ENDPOINT}?file=${encodeURIComponent(filename)}`
 
-        const { uploadUrl, publicUrl } = await presignResponse.json()
+        console.log('Uploading to R2:', uploadUrl)
 
-        // Step 2: Upload file directly to R2
-        const uploadResponse = await fetch(uploadUrl, {
+        const response = await fetch(uploadUrl, {
             method: 'PUT',
             body: file,
             headers: {
@@ -71,13 +62,24 @@ export const uploadToR2 = async (file, userId) => {
             }
         })
 
-        if (!uploadResponse.ok) {
-            throw new Error('Failed to upload to R2')
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}))
+            throw new Error(errorData.error || `Upload failed with status ${response.status}`)
         }
+
+        const result = await response.json()
+
+        // Worker returns { success: true, url: "https://pub-xxx.r2.dev/receipts/..." }
+        if (!result.success) {
+            throw new Error(result.error || 'Upload failed')
+        }
+
+        console.log('Upload successful:', result.url)
 
         return {
             success: true,
-            imageUrl: publicUrl
+            imageUrl: result.url,  // Use 'url' field from Worker response
+            filename: result.filename
         }
     } catch (error) {
         console.error('R2 upload error:', error)
