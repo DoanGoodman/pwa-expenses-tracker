@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard'
 import ExpenseList from './pages/ExpenseList'
 import AddExpense from './pages/AddExpense'
 import Documents from './pages/Documents'
+import RecycleBin from './pages/RecycleBin'
 import Login from './pages/Login'
 import ResetPassword from './pages/ResetPassword'
 
@@ -31,6 +32,7 @@ const AppContent = () => {
         <Route path="/expenses" element={<ExpenseList />} />
         <Route path="/add" element={<AddExpense />} />
         <Route path="/documents" element={<Documents />} />
+        <Route path="/recycle-bin" element={<RecycleBin />} />
       </Routes>
       <BottomNav />
     </div>

@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react'
-import { Save, X, Edit3, Camera, ChevronDown, ChevronRight } from 'lucide-react'
+import { Save, X, Edit3, ImagePlus, ChevronDown, ChevronRight, Plus, CheckCircle2, Lock, Send, Clock, XCircle } from 'lucide-react'
 import { formatAmountInput, parseAmount, formatDecimalInput, parseDecimal, formatDateVN } from '../../utils/formatters'
 import { CategoryIconComponent, getCategoryIconColor } from '../../utils/categoryIcons'
 import UnitBottomSheet, { UNIT_OPTIONS } from './UnitBottomSheet'
 import SelectionBottomSheet from './SelectionBottomSheet'
+import ReceiptScanner from './ReceiptScanner'
+import ReceiptItemCard from './ReceiptItemCard'
+import { useBulkInsertExpenses } from '../../hooks/useSupabase'
+import { useFeaturePermission } from '../../hooks/useFeaturePermission'
 
 const ExpenseForm = ({
     projects,
@@ -11,11 +15,22 @@ const ExpenseForm = ({
     initialData = null,
     onSubmit,
     onCancel,
-    loading = false
+    loading = false,
+    onBulkSaveSuccess
 }) => {
+    const { bulkInsert, loading: bulkLoading } = useBulkInsertExpenses()
+    const { status: permissionStatus, requestAccess, requesting, refetch: refetchPermission, isApproved } = useFeaturePermission('receipt_scanner')
     const [inputMethod, setInputMethod] = useState('manual') // 'manual' or 'invoice'
     const [showUnitSheet, setShowUnitSheet] = useState(false)
     const [showSelectionSheet, setShowSelectionSheet] = useState(false)
+
+    // Multi-item state for manual entry
+    const [manualItems, setManualItems] = useState([])
+    const [selectedProject, setSelectedProject] = useState(null)
+    const [selectedCategory, setSelectedCategory] = useState(null)
+    const [manualDate, setManualDate] = useState(new Date().toISOString().split('T')[0])
+
+    // Single item form data (for edit mode or when initialData is provided)
     const [formData, setFormData] = useState({
         project_id: '',
         category_id: '',
@@ -26,6 +41,13 @@ const ExpenseForm = ({
         unit_price: '',
         amount: ''
     })
+
+    // Initialize first item when entering manual mode (only if no items exist)
+    useEffect(() => {
+        if (inputMethod === 'manual' && manualItems.length === 0 && !initialData) {
+            addNewItem()
+        }
+    }, [inputMethod])
 
     useEffect(() => {
         if (initialData) {
@@ -47,19 +69,54 @@ const ExpenseForm = ({
         }
     }, [initialData])
 
-    // Auto calculate amount when quantity or unit_price changes
+    // Auto calculate amount when quantity or unit_price changes (for edit mode)
     useEffect(() => {
-        const qty = parseDecimal(formData.quantity) || 0
-        const price = parseAmount(formData.unit_price) || 0
-        const calculated = qty * price
+        if (initialData) {
+            const qty = parseDecimal(formData.quantity) || 0
+            const price = parseAmount(formData.unit_price) || 0
+            const calculated = qty * price
 
-        if (calculated > 0 && (parseAmount(formData.unit_price) > 0)) {
-            setFormData(prev => ({
-                ...prev,
-                amount: formatAmountInput(String(Math.round(calculated))) // Round amount to avoid decimals in total
-            }))
+            if (calculated > 0 && (parseAmount(formData.unit_price) > 0)) {
+                setFormData(prev => ({
+                    ...prev,
+                    amount: formatAmountInput(String(Math.round(calculated)))
+                }))
+            }
         }
-    }, [formData.quantity, formData.unit_price])
+    }, [formData.quantity, formData.unit_price, initialData])
+
+    // Add a new item to the manual items list
+    const addNewItem = () => {
+        const newItem = {
+            id: `manual-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            description: '',
+            quantity: 1,
+            unit: '',
+            unit_price: 0,
+            amount: 0,
+            confidence: 1 // High confidence for manual entry
+        }
+        setManualItems(prev => [...prev, newItem])
+    }
+
+    // Update an item in the list
+    const handleItemUpdate = (itemId, updatedItem) => {
+        setManualItems(prev => prev.map(item =>
+            item.id === itemId ? updatedItem : item
+        ))
+    }
+
+    // Delete an item from the list
+    const handleItemDelete = (itemId) => {
+        setManualItems(prev => prev.filter(item => item.id !== itemId))
+    }
+
+    // Calculate total for manual items
+    const manualTotal = manualItems.reduce((sum, item) => sum + (item.amount || 0), 0)
+
+    // Check if manual multi-item form is valid
+    const isManualMultiValid = selectedProject && selectedCategory && manualItems.length > 0 &&
+        manualItems.every(item => item.amount > 0)
 
     const handleChange = (field, value) => {
         if (field === 'amount' || field === 'unit_price') {
@@ -102,181 +159,342 @@ const ExpenseForm = ({
 
     return (
         <div className="expense-form-container">
-            {/* Input Method Tabs */}
-            <div className="flex gap-2 mb-4">
-                <button
-                    type="button"
-                    onClick={() => setInputMethod('manual')}
-                    className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium transition-all ${inputMethod === 'manual'
-                        ? 'bg-white border-2 border-primary text-primary shadow-sm'
-                        : 'bg-gray-100 border-2 border-transparent text-gray-500'
-                        }`}
-                >
-                    <Edit3 size={18} />
-                    Nhập tay
-                </button>
-                <button
-                    type="button"
-                    onClick={() => setInputMethod('invoice')}
-                    className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium transition-all ${inputMethod === 'invoice'
-                        ? 'bg-white border-2 border-primary text-primary shadow-sm'
-                        : 'bg-gray-100 border-2 border-transparent text-gray-500'
-                        }`}
-                >
-                    <Camera size={18} />
-                    Chụp hóa đơn
-                </button>
-            </div>
+            {/* Input Method Tabs - only show when NOT in manual add mode (multi-item mode has its own tabs in sticky header) */}
+            {!(inputMethod === 'manual' && !initialData) && (
+                <div className="flex gap-2 mb-4">
+                    <button
+                        type="button"
+                        onClick={() => setInputMethod('manual')}
+                        className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium transition-all ${inputMethod === 'manual'
+                            ? 'bg-white border-2 border-primary text-primary shadow-sm'
+                            : 'bg-gray-100 border-2 border-transparent text-gray-500'
+                            }`}
+                    >
+                        <Edit3 size={18} />
+                        Nhập tay
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setInputMethod('invoice')}
+                        className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium transition-all ${inputMethod === 'invoice'
+                            ? 'bg-white border-2 border-primary text-primary shadow-sm'
+                            : 'bg-gray-100 border-2 border-transparent text-gray-500'
+                            }`}
+                    >
+                        <ImagePlus size={18} />
+                        Tải hóa đơn
+                    </button>
+                </div>
+            )}
 
             {inputMethod === 'manual' ? (
-                <form onSubmit={handleSubmit} className="expense-form-content">
-                    {/* Selection Summary Bar (Replaces Project, Category, Date inputs) */}
-                    <div
-                        className="selection-summary-bar"
-                        onClick={() => setShowSelectionSheet(true)}
-                    >
-                        <div className="summary-content">
-                            <div className="summary-title">
-                                {projects.find(p => String(p.id) === String(formData.project_id))?.name || 'Chưa chọn dự án'}
-                            </div>
-                            <div className="summary-subtitle">
-                                {(() => {
-                                    const selectedCategory = categories.find(c => String(c.id) === String(formData.category_id))
-                                    if (selectedCategory) {
-                                        return (
-                                            <span className="flex items-center gap-1.5 font-medium">
-                                                <CategoryIconComponent
-                                                    categoryName={selectedCategory.name}
-                                                    size={14}
-                                                />
-                                                <span className={getCategoryIconColor(selectedCategory.name)}>
-                                                    {selectedCategory.name}
+                initialData ? (
+                    // EDIT MODE - Single item form
+                    <form onSubmit={handleSubmit} className="expense-form-content">
+                        {/* Selection Summary Bar */}
+                        <div
+                            className="selection-summary-bar"
+                            onClick={() => setShowSelectionSheet(true)}
+                        >
+                            <div className="summary-content">
+                                <div className="summary-title">
+                                    {projects.find(p => String(p.id) === String(formData.project_id))?.name || 'Chưa chọn dự án'}
+                                </div>
+                                <div className="summary-subtitle">
+                                    {(() => {
+                                        const cat = categories.find(c => String(c.id) === String(formData.category_id))
+                                        if (cat) {
+                                            return (
+                                                <span className="flex items-center gap-1.5 font-medium">
+                                                    <CategoryIconComponent categoryName={cat.name} size={14} />
+                                                    <span className={getCategoryIconColor(cat.name)}>{cat.name}</span>
                                                 </span>
-                                            </span>
-                                        )
-                                    }
-                                    return <span className="text-gray-400">Chưa chọn danh mục</span>
-                                })()}
-                                <span className="text-gray-300 mx-1">•</span>
-                                <span>{formatDateVN(formData.date)}</span>
+                                            )
+                                        }
+                                        return <span className="text-gray-400">Chưa chọn danh mục</span>
+                                    })()}
+                                    <span className="text-gray-300 mx-1">•</span>
+                                    <span>{formatDateVN(formData.date)}</span>
+                                </div>
                             </div>
+                            <ChevronRight className="summary-arrow" size={20} />
                         </div>
-                        <ChevronRight className="summary-arrow" size={20} />
-                    </div>
 
-                    {/* Description */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                            Mô tả
-                        </label>
-                        <textarea
-                            value={formData.description}
-                            onChange={(e) => handleChange('description', e.target.value)}
-                            className="input-field resize-none"
-                            rows={2}
-                            placeholder="Nhập mô tả chi phí..."
-                        />
-                    </div>
-
-                    {/* Quantity, Unit (ĐVT), Unit Price - Adjusted widths */}
-                    <div className="quantity-unit-price-row">
-                        <div className="quantity-field">
-                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                                Khối lượng
-                            </label>
-                            <input
-                                type="text"
-                                inputMode="decimal"
-                                value={formData.quantity}
-                                onChange={(e) => handleChange('quantity', e.target.value)}
-                                onFocus={(e) => e.target.select()}
-                                className="input-field text-right"
-                                placeholder="1"
+                        {/* Description */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">Mô tả</label>
+                            <textarea
+                                value={formData.description}
+                                onChange={(e) => handleChange('description', e.target.value)}
+                                className="input-field resize-none"
+                                rows={2}
+                                placeholder="Nhập mô tả chi phí..."
                             />
                         </div>
-                        <div className="unit-field">
-                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                                ĐVT
-                            </label>
-                            <button
-                                type="button"
-                                onClick={() => setShowUnitSheet(true)}
-                                className="unit-selector-btn"
-                            >
-                                <span>{getUnitLabel(formData.unit)}</span>
-                                <ChevronDown size={16} />
-                            </button>
+
+                        {/* Quantity, Unit, Price */}
+                        <div className="quantity-unit-price-row">
+                            <div className="quantity-field">
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">Khối lượng</label>
+                                <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={formData.quantity}
+                                    onChange={(e) => handleChange('quantity', e.target.value)}
+                                    onFocus={(e) => e.target.select()}
+                                    className="input-field text-right"
+                                    placeholder="1"
+                                />
+                            </div>
+                            <div className="unit-field">
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">ĐVT</label>
+                                <button type="button" onClick={() => setShowUnitSheet(true)} className="unit-selector-btn">
+                                    <span>{getUnitLabel(formData.unit)}</span>
+                                    <ChevronDown size={16} />
+                                </button>
+                            </div>
+                            <div className="unit-price-field">
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">Đơn giá (VND)</label>
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={formData.unit_price}
+                                    onChange={(e) => handleChange('unit_price', e.target.value)}
+                                    onFocus={(e) => e.target.select()}
+                                    className="input-field text-right"
+                                    placeholder="0"
+                                />
+                            </div>
                         </div>
-                        <div className="unit-price-field">
+
+                        {/* Amount */}
+                        <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                                Đơn giá (VND)
+                                Số tiền (VND) <span className="text-red-500">*</span>
                             </label>
                             <input
                                 type="text"
                                 inputMode="numeric"
-                                value={formData.unit_price}
-                                onChange={(e) => handleChange('unit_price', e.target.value)}
-                                onFocus={(e) => e.target.select()}
-                                className="input-field text-right"
+                                value={formData.amount}
+                                onChange={(e) => handleChange('amount', e.target.value)}
+                                className="input-field text-right text-lg font-semibold text-primary"
                                 placeholder="0"
+                                required
                             />
                         </div>
-                    </div>
 
-                    {/* Amount (Auto-calculated or Manual) */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                            Số tiền (VND) <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                            type="text"
-                            inputMode="numeric"
-                            value={formData.amount}
-                            onChange={(e) => handleChange('amount', e.target.value)}
-                            className="input-field text-right text-lg font-semibold text-primary"
-                            placeholder="0"
-                            required
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                            {parseAmount(formData.unit_price) > 0
-                                ? '✓ Tự động tính = Khối lượng × Đơn giá'
-                                : 'Nhập trực tiếp hoặc nhập Đơn giá'}
-                        </p>
-                    </div>
+                        {/* Buttons */}
+                        <div className="expense-form-buttons">
+                            {onCancel && (
+                                <button type="button" onClick={onCancel} className="flex-1 flex items-center justify-center gap-2 py-3 px-4 border border-gray-300 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-colors">
+                                    <X size={18} /> Hủy
+                                </button>
+                            )}
+                            <button type="submit" disabled={!isValid || loading} className="flex-1 btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <Save size={18} /> {loading ? 'Đang lưu...' : 'Cập nhật'}
+                            </button>
+                        </div>
+                    </form>
+                ) : (
+                    // ADD MODE - Multi-item form
+                    <div className="expense-form-content">
+                        {/* Sticky Header: Tabs + Selection Summary */}
+                        <div className="manual-sticky-header">
+                            {/* Input Method Tabs */}
+                            <div className="flex gap-2 mb-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setInputMethod('manual')}
+                                    className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium transition-all ${inputMethod === 'manual'
+                                        ? 'bg-white border-2 border-primary text-primary shadow-sm'
+                                        : 'bg-gray-100 border-2 border-transparent text-gray-500'
+                                        }`}
+                                >
+                                    <Edit3 size={18} />
+                                    Nhập tay
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setInputMethod('invoice')}
+                                    className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium transition-all ${inputMethod === 'invoice'
+                                        ? 'bg-white border-2 border-primary text-primary shadow-sm'
+                                        : 'bg-gray-100 border-2 border-transparent text-gray-500'
+                                        }`}
+                                >
+                                    <ImagePlus size={18} />
+                                    Tải hóa đơn
+                                </button>
+                            </div>
 
-                    {/* Buttons with safe area padding */}
-                    <div className="expense-form-buttons">
-                        {onCancel && (
+                            {/* Selection Summary Bar */}
+                            <div
+                                className="selection-summary-bar"
+                                onClick={() => setShowSelectionSheet(true)}
+                            >
+                                <div className="summary-content">
+                                    <div className="summary-title">
+                                        {selectedProject?.name || 'Chọn dự án chung *'}
+                                    </div>
+                                    <div className="summary-subtitle">
+                                        {selectedCategory ? (
+                                            <span className="flex items-center gap-1.5 font-medium">
+                                                <CategoryIconComponent categoryName={selectedCategory.name} size={14} />
+                                                <span className={getCategoryIconColor(selectedCategory.name)}>{selectedCategory.name}</span>
+                                            </span>
+                                        ) : (
+                                            <span className="text-gray-400">Chọn danh mục chung *</span>
+                                        )}
+                                        <span className="text-gray-300 mx-1">•</span>
+                                        <span>{formatDateVN(manualDate)}</span>
+                                    </div>
+                                </div>
+                                <ChevronRight className="summary-arrow" size={20} />
+                            </div>
+                        </div>
+
+                        {/* Items List */}
+                        <div className="space-y-3">
+                            {manualItems.map((item, index) => (
+                                <ReceiptItemCard
+                                    key={item.id}
+                                    item={item}
+                                    index={index}
+                                    onUpdate={handleItemUpdate}
+                                    onDelete={handleItemDelete}
+                                />
+                            ))}
+                        </div>
+
+                        {/* Add Item Button */}
+                        <button
+                            type="button"
+                            onClick={addNewItem}
+                            className="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 flex items-center justify-center gap-2 hover:border-primary hover:text-primary transition-colors"
+                        >
+                            <Plus size={20} />
+                            Thêm mục chi phí
+                        </button>
+
+                        {/* Total Summary */}
+                        <div className="p-3 bg-gradient-to-r from-teal-50 to-emerald-50 rounded-xl">
+                            <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs text-gray-500 whitespace-nowrap flex-shrink-0">Tổng ({manualItems.length})</span>
+                                <span className="text-lg font-bold text-teal-700 text-right truncate">
+                                    {new Intl.NumberFormat('en-US').format(Math.round(manualTotal))} đ
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="expense-form-buttons">
                             <button
                                 type="button"
-                                onClick={onCancel}
-                                className="flex-1 flex items-center justify-center gap-2 py-3 px-4 border border-gray-300 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                                onClick={() => {
+                                    setManualItems([])
+                                    setSelectedProject(null)
+                                    setSelectedCategory(null)
+                                    addNewItem()
+                                }}
+                                className="flex-1 py-3 px-4 border border-gray-300 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-colors"
                             >
-                                <X size={18} />
                                 Hủy
                             </button>
-                        )}
-                        <button
-                            type="submit"
-                            disabled={!isValid || loading}
-                            className="flex-1 btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <Save size={18} />
-                            {loading ? 'Đang lưu...' : (initialData ? 'Cập nhật' : 'Lưu chi phí')}
-                        </button>
+                            <button
+                                type="button"
+                                disabled={!isManualMultiValid || bulkLoading}
+                                onClick={async () => {
+                                    const expensesData = manualItems.map(item => ({
+                                        project_id: selectedProject.id,
+                                        category_id: selectedCategory.id,
+                                        expense_date: manualDate,
+                                        description: item.description || '',
+                                        quantity: item.quantity || 1,
+                                        unit: item.unit || null,
+                                        unit_price: item.unit_price || 0,
+                                        amount: item.amount || 0
+                                    }))
+                                    const result = await bulkInsert(expensesData)
+                                    if (result.success && onBulkSaveSuccess) {
+                                        onBulkSaveSuccess(result.count)
+                                        // Reset form
+                                        setManualItems([])
+                                        setSelectedProject(null)
+                                        setSelectedCategory(null)
+                                        addNewItem()
+                                    }
+                                }}
+                                className="flex-1 btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <CheckCircle2 size={18} />
+                                {bulkLoading ? 'Đang lưu...' : 'Xác nhận & Lưu'}
+                            </button>
+                        </div>
                     </div>
-                </form>
+                )
             ) : (
-                // Invoice Scanner Mode (Coming Soon)
-                <div className="py-20 text-center">
-                    <Camera size={64} className="mx-auto text-gray-300 mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                        Chức năng đang phát triển
-                    </h3>
-                    <p className="text-sm text-gray-500">
-                        Tính năng chụp và quét hóa đơn sẽ sớm có mặt
-                    </p>
-                </div>
+                // Receipt Scanner Mode - Permission gated
+                isApproved ? (
+                    <ReceiptScanner
+                        projects={projects}
+                        categories={categories}
+                        onBulkSave={async (expensesData) => {
+                            const result = await bulkInsert(expensesData)
+                            if (result.success && onBulkSaveSuccess) {
+                                onBulkSaveSuccess(result.count)
+                            }
+                            return result
+                        }}
+                        loading={bulkLoading}
+                    />
+                ) : (
+                    // Permission required UI - button inline below text
+                    <div className="text-center py-8 px-4">
+                        {permissionStatus === 'pending' ? (
+                            <>
+                                <div className="w-14 h-14 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Clock size={28} className="text-yellow-500" />
+                                </div>
+                                <h3 className="text-lg font-semibold text-gray-800 mb-2">Đang chờ phê duyệt</h3>
+                                <p className="text-sm text-gray-500 mb-4">Vui lòng chờ quản trị viên phê duyệt.</p>
+                                <button onClick={refetchPermission} className="text-primary text-sm font-medium underline">
+                                    Kiểm tra lại trạng thái
+                                </button>
+                            </>
+                        ) : permissionStatus === 'rejected' ? (
+                            <>
+                                <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <XCircle size={28} className="text-red-500" />
+                                </div>
+                                <h3 className="text-lg font-semibold text-gray-800 mb-2">Yêu cầu bị từ chối</h3>
+                                <p className="text-sm text-gray-500 mb-6">Vui lòng liên hệ quản trị viên.</p>
+                                <button
+                                    onClick={requestAccess}
+                                    disabled={requesting}
+                                    style={{ backgroundColor: '#14b8a6', color: '#ffffff' }}
+                                    className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl font-semibold shadow-lg disabled:opacity-50"
+                                >
+                                    {requesting ? 'Đang gửi lại...' : <><Send size={20} /> Gửi lại yêu cầu</>}
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Lock size={28} className="text-primary" />
+                                </div>
+                                <h3 className="text-lg font-semibold text-gray-800 mb-2">Tính năng cần phê duyệt</h3>
+                                <p className="text-sm text-gray-500 mb-6">Tính năng này cần được quản trị viên phê duyệt trước khi sử dụng.</p>
+                                <button
+                                    onClick={requestAccess}
+                                    disabled={requesting}
+                                    style={{ backgroundColor: '#14b8a6', color: '#ffffff' }}
+                                    className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl font-semibold shadow-lg disabled:opacity-50"
+                                >
+                                    {requesting ? 'Đang gửi yêu cầu...' : <><Send size={20} /> Yêu cầu truy cập</>}
+                                </button>
+                            </>
+                        )}
+                    </div>
+                )
             )}
 
             {/* Unit Bottom Sheet */}
@@ -294,17 +512,27 @@ const ExpenseForm = ({
                 projects={projects}
                 categories={categories}
                 initialData={{
-                    projectId: formData.project_id,
-                    categoryId: formData.category_id,
-                    date: formData.date
+                    projectId: initialData ? formData.project_id : (selectedProject?.id || ''),
+                    categoryId: initialData ? formData.category_id : (selectedCategory?.id || ''),
+                    date: initialData ? formData.date : manualDate
                 }}
                 onApply={(data) => {
-                    setFormData(prev => ({
-                        ...prev,
-                        project_id: data.projectId,
-                        category_id: data.categoryId,
-                        date: data.date
-                    }))
+                    if (initialData) {
+                        // Edit mode - update formData
+                        setFormData(prev => ({
+                            ...prev,
+                            project_id: data.projectId,
+                            category_id: data.categoryId,
+                            date: data.date
+                        }))
+                    } else {
+                        // Add mode - update multi-item states
+                        const proj = projects.find(p => String(p.id) === String(data.projectId))
+                        const cat = categories.find(c => String(c.id) === String(data.categoryId))
+                        setSelectedProject(proj || null)
+                        setSelectedCategory(cat || null)
+                        setManualDate(data.date)
+                    }
                 }}
             />
         </div>

@@ -237,11 +237,12 @@ export const useExpenses = (filters = {}) => {
                 return
             }
 
-            // 1. Build query with user_id filter
+            // 1. Build query with user_id filter (exclude soft-deleted items)
             let query = supabase
                 .from('expenses')
                 .select('*')
                 .eq('user_id', userId)
+                .is('deleted_at', null)
                 .order(sortColumn, { ascending })
 
             if (filters.projectId && filters.projectId !== 'all') {
@@ -427,18 +428,14 @@ export const useDeleteExpense = () => {
         }
 
         try {
-            // Step 1: Update last_change_reason BEFORE deleting (for trigger/audit)
-            if (reason) {
-                await supabase
-                    .from('expenses')
-                    .update({ last_change_reason: reason })
-                    .eq('id', id)
-            }
-
-            // Step 2: Perform the actual delete
+            // Soft delete: Set deleted_at timestamp instead of hard delete
+            // This allows recovery within 30 days
             const { error } = await supabase
                 .from('expenses')
-                .delete()
+                .update({
+                    deleted_at: new Date().toISOString(),
+                    last_change_reason: reason || 'Xóa chi phí'
+                })
                 .eq('id', id)
 
             if (error) throw error
@@ -539,10 +536,12 @@ export const useDashboardStats = (startMonth, endMonth, projectId = null) => {
                 }
 
                 // Build query with filters
+                // Exclude soft-deleted items from dashboard stats
                 let query = supabase
                     .from('expenses')
                     .select('*')
                     .eq('user_id', userId)
+                    .is('deleted_at', null)
 
                 if (startMonth && endMonth) {
                     const lastDay = getLastDayOfMonth(endMonth)
@@ -627,4 +626,58 @@ export const useDashboardStats = (startMonth, endMonth, projectId = null) => {
     }, [startMonth, endMonth, projectId])
 
     return { stats, loading }
+}
+
+// Hook để bulk insert nhiều expenses cùng lúc (từ Receipt Scanner)
+export const useBulkInsertExpenses = () => {
+    const [loading, setLoading] = useState(false)
+
+    const bulkInsert = async (expensesArray) => {
+        if (!expensesArray || expensesArray.length === 0) {
+            throw new Error('Không có dữ liệu để lưu')
+        }
+
+        setLoading(true)
+
+        try {
+            if (isDemoMode()) {
+                // Demo mode: add to local array
+                const newExpenses = expensesArray.map((expense, index) => ({
+                    id: `demo-${Date.now()}-${index}`,
+                    ...expense,
+                    created_at: new Date().toISOString()
+                }))
+                demoData.expenses.push(...newExpenses)
+                setLoading(false)
+                return { success: true, count: newExpenses.length }
+            }
+
+            const userId = await getCurrentUserId()
+            if (!userId) {
+                throw new Error('Bạn cần đăng nhập để lưu chi phí')
+            }
+
+            // Add user_id to each expense
+            const dataWithUserId = expensesArray.map(expense => ({
+                ...expense,
+                user_id: userId
+            }))
+
+            const { data, error } = await supabase
+                .from('expenses')
+                .insert(dataWithUserId)
+                .select()
+
+            if (error) throw error
+
+            return { success: true, count: data?.length || 0, data }
+        } catch (error) {
+            console.error('Bulk insert error:', error)
+            throw error
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return { bulkInsert, loading }
 }

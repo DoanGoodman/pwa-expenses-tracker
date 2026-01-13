@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import Header from '../components/layout/Header'
 import ExpenseSearchBar from '../components/expenses/ExpenseSearchBar'
 import SortToolbar from '../components/expenses/SortToolbar'
@@ -11,6 +12,9 @@ import { exportToExcel, exportToPDF } from '../utils/exportHelpers'
 import { X, CheckCircle } from 'lucide-react'
 
 const ExpenseList = () => {
+    const location = useLocation()
+    const navigate = useNavigate()
+
     // Filter states
     const [selectedProject, setSelectedProject] = useState('all')
     const [selectedCategories, setSelectedCategories] = useState([])
@@ -40,6 +44,11 @@ const ExpenseList = () => {
     })
     const { deleteExpense } = useDeleteExpense()
     const { updateExpense, loading: updating } = useUpdateExpense()
+
+    // Refetch when navigating to this page (e.g., after bulk save from receipt scanner)
+    useEffect(() => {
+        refetch()
+    }, [location.key])
 
     // Handle filter change from Bottom Sheet
     const handleFilterChange = (filters) => {
@@ -87,7 +96,7 @@ const ExpenseList = () => {
             await deleteExpense(pendingDelete.id, reason)
             setPendingDelete(null)
             refetch()
-            showSuccess('Đã xóa và ghi lại nhật ký thay đổi')
+            showSuccess('Data sẽ bị xóa vĩnh viễn trong vòng 30 ngày. Để khôi phục hãy vào biểu tượng ☰ góc trái chọn mục Thùng rác.')
         }
     }
 
@@ -151,6 +160,10 @@ const ExpenseList = () => {
         exportToPDF(expenses, `DS_ChiPhi_${new Date().toISOString().slice(0, 10)}`)
     }
 
+    const handleRecycleBin = () => {
+        navigate('/recycle-bin')
+    }
+
     return (
         <div className="page-container">
             {/* Header */}
@@ -158,6 +171,7 @@ const ExpenseList = () => {
                 title="Chi tiết chi phí"
                 onExportExcel={handleExportExcel}
                 onExportPDF={handleExportPDF}
+                onRecycleBin={handleRecycleBin}
             />
 
             {/* New Advanced Search Bar */}
