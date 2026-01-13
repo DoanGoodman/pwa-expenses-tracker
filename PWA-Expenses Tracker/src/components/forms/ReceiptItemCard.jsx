@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Trash2, AlertTriangle, ChevronDown } from 'lucide-react'
 import { formatAmountInput, parseAmount } from '../../utils/formatters'
 import UnitBottomSheet, { UNIT_OPTIONS } from './UnitBottomSheet'
@@ -28,6 +28,20 @@ const ReceiptItemCard = ({
     })
     const [hasBeenEdited, setHasBeenEdited] = useState(false)
     const [showUnitSheet, setShowUnitSheet] = useState(false)
+    const textareaRef = useRef(null)
+
+    // Auto-resize textarea based on content
+    const autoResizeTextarea = () => {
+        if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto'
+            textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px'
+        }
+    }
+
+    // Resize on mount and when description changes
+    useEffect(() => {
+        autoResizeTextarea()
+    }, [localData.description])
 
     // Get unit display label
     const getUnitLabel = (value) => {
@@ -99,14 +113,15 @@ const ReceiptItemCard = ({
                 </button>
             </div>
 
-            {/* Description */}
+            {/* Description - auto-resize textarea */}
             <div className="mb-3">
-                <input
-                    type="text"
+                <textarea
+                    ref={textareaRef}
                     value={localData.description}
                     onChange={(e) => handleChange('description', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary resize-none overflow-hidden min-h-[40px]"
                     placeholder="Mô tả chi phí..."
+                    rows={1}
                 />
             </div>
 
