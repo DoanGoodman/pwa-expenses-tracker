@@ -17,7 +17,7 @@ export default {
     async fetch(request, env) {
         const corsHeaders = {
             "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "PUT, OPTIONS",
+            "Access-Control-Allow-Methods": "PUT, DELETE, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type",
         };
 
@@ -130,7 +130,46 @@ export default {
             }
         }
 
-        return jsonResponse({ success: false, error: "Chỉ chấp nhận PUT" }, 405, corsHeaders);
+        // Handle DELETE - Remove file from R2 (called by Supabase cleanup job)
+        if (request.method === "DELETE") {
+            const url = new URL(request.url);
+            const fileUrl = url.searchParams.get('url');
+
+            if (!fileUrl) {
+                return jsonResponse({ success: false, error: "Thiếu tham số ?url=" }, 400, corsHeaders);
+            }
+
+            try {
+                // Extract filename from full URL
+                // e.g., https://pub-xxx.r2.dev/receipts/user123/1234567890.jpg -> receipts/user123/1234567890.jpg
+                const urlObj = new URL(fileUrl);
+                const fileName = urlObj.pathname.replace(/^\//, ''); // Remove leading slash
+
+                if (!fileName) {
+                    return jsonResponse({ success: false, error: "Không thể xác định tên file từ URL" }, 400, corsHeaders);
+                }
+
+                // Delete from R2
+                await env.MY_BUCKET.delete(fileName);
+
+                console.log('Deleted from R2:', fileName);
+
+                return jsonResponse({
+                    success: true,
+                    message: "Đã xóa file thành công",
+                    filename: fileName
+                }, 200, corsHeaders);
+
+            } catch (err) {
+                console.error('Delete error:', err);
+                return jsonResponse({
+                    success: false,
+                    error: err.message || "Lỗi xóa file"
+                }, 500, corsHeaders);
+            }
+        }
+
+        return jsonResponse({ success: false, error: "Chỉ chấp nhận PUT hoặc DELETE" }, 405, corsHeaders);
     }
 };
 
