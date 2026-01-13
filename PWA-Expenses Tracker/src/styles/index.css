@@ -2704,11 +2704,10 @@ a.bottom-nav-item {
     padding: 24px;
 }
 
-/* Review mode */
+/* Review mode - match expense form width */
 .receipt-scanner-review {
     padding: 16px;
-    max-width: 456px;
-    margin: 0 auto;
+    /* No max-width - use full available width like expense form */
 }
 
 /* Sticky header for receipt review */
