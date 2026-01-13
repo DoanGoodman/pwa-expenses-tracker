@@ -447,52 +447,61 @@ const ExpenseForm = ({
                         loading={bulkLoading}
                     />
                 ) : (
-                    // Permission required UI - compact layout
-                    <div className="p-6">
-                        <div className="bg-gray-50 rounded-2xl p-6 text-center">
+                    // Permission required UI - with fixed button
+                    <div className="relative">
+                        {/* Content */}
+                        <div className="text-center pt-8 pb-24 px-4">
                             {permissionStatus === 'pending' ? (
                                 <>
-                                    <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                                        <Clock size={24} className="text-yellow-500" />
+                                    <div className="w-14 h-14 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <Clock size={28} className="text-yellow-500" />
                                     </div>
-                                    <h3 className="text-base font-semibold text-gray-800 mb-1">Đang chờ phê duyệt</h3>
-                                    <p className="text-sm text-gray-500 mb-3">Vui lòng chờ quản trị viên phê duyệt.</p>
-                                    <button onClick={refetchPermission} className="text-primary text-sm font-medium">
-                                        Kiểm tra lại
+                                    <h3 className="text-lg font-semibold text-gray-800 mb-2">Đang chờ phê duyệt</h3>
+                                    <p className="text-sm text-gray-500 mb-4">Vui lòng chờ quản trị viên phê duyệt.</p>
+                                    <button onClick={refetchPermission} className="text-primary text-sm font-medium underline">
+                                        Kiểm tra lại trạng thái
                                     </button>
                                 </>
                             ) : permissionStatus === 'rejected' ? (
                                 <>
-                                    <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                                        <XCircle size={24} className="text-red-500" />
+                                    <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <XCircle size={28} className="text-red-500" />
                                     </div>
-                                    <h3 className="text-base font-semibold text-gray-800 mb-1">Yêu cầu bị từ chối</h3>
-                                    <p className="text-sm text-gray-500 mb-3">Vui lòng liên hệ quản trị viên.</p>
-                                    <button
-                                        onClick={requestAccess}
-                                        disabled={requesting}
-                                        className="inline-flex items-center gap-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm"
-                                    >
-                                        <Send size={14} /> Gửi lại
-                                    </button>
+                                    <h3 className="text-lg font-semibold text-gray-800 mb-2">Yêu cầu bị từ chối</h3>
+                                    <p className="text-sm text-gray-500">Vui lòng liên hệ quản trị viên.</p>
                                 </>
                             ) : (
                                 <>
-                                    <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
-                                        <Lock size={24} className="text-primary" />
+                                    <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <Lock size={28} className="text-primary" />
                                     </div>
-                                    <h3 className="text-base font-semibold text-gray-800 mb-1">Tính năng cần phê duyệt</h3>
-                                    <p className="text-sm text-gray-500 mb-4">Tính năng này cần được phê duyệt trước khi sử dụng.</p>
-                                    <button
-                                        onClick={requestAccess}
-                                        disabled={requesting}
-                                        className="inline-flex items-center justify-center gap-2 w-full px-4 py-3 bg-primary text-white rounded-xl font-medium disabled:opacity-50"
-                                    >
-                                        {requesting ? 'Đang gửi...' : <><Send size={16} /> Yêu cầu truy cập</>}
-                                    </button>
+                                    <h3 className="text-lg font-semibold text-gray-800 mb-2">Tính năng cần phê duyệt</h3>
+                                    <p className="text-sm text-gray-500">Tính năng này cần được quản trị viên phê duyệt trước khi sử dụng.</p>
                                 </>
                             )}
                         </div>
+
+                        {/* Fixed Button at bottom - only show for 'none' or 'rejected' status */}
+                        {(permissionStatus === 'none' || permissionStatus === 'rejected') && (
+                            <div className="fixed bottom-20 left-0 right-0 px-6 z-40">
+                                <div className="max-w-[440px] mx-auto">
+                                    <button
+                                        onClick={requestAccess}
+                                        disabled={requesting}
+                                        className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-primary text-white rounded-2xl font-semibold shadow-lg disabled:opacity-50"
+                                    >
+                                        {requesting ? (
+                                            'Đang gửi yêu cầu...'
+                                        ) : (
+                                            <>
+                                                <Send size={20} />
+                                                Yêu cầu truy cập
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )
             )}
