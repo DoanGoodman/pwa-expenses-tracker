@@ -2664,16 +2664,14 @@ a.bottom-nav-item {
     color: #6b7280;
 }
 
-/* Receipt item card */
+/* Receipt item card - match expense form width */
 .receipt-item-card {
     background: white;
     border: 1px solid #e5e7eb;
     border-radius: 16px;
     padding: 16px;
     transition: all 0.3s ease;
-    max-width: 456px;
-    margin: 0 auto 16px auto;
-    /* Added bottom margin for spacing */
+    /* No max-width - use full available width like expense form */
 }
 
 .receipt-item-card.flash-warning {
