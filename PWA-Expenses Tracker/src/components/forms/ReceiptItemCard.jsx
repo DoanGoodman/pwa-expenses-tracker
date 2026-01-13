@@ -102,9 +102,9 @@ const ReceiptItemCard = ({
                 />
             </div>
 
-            {/* Quantity, Unit, Unit Price in a row */}
-            <div className="grid grid-cols-3 gap-2 mb-3">
-                <div>
+            {/* Quantity, Unit, Unit Price in a row - matching ExpenseForm layout */}
+            <div className="flex gap-2 mb-3">
+                <div className="flex-1 min-w-0">
                     <label className="block text-xs text-gray-500 mb-1">SL</label>
                     <input
                         type="text"
@@ -112,10 +112,10 @@ const ReceiptItemCard = ({
                         value={localData.quantity}
                         onChange={(e) => handleChange('quantity', e.target.value)}
                         onFocus={(e) => e.target.select()}
-                        className="w-full px-2 py-2 border border-gray-200 rounded-lg text-sm text-center focus:outline-none focus:border-primary"
+                        className="w-full px-2 py-2 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:border-primary"
                     />
                 </div>
-                <div>
+                <div className="w-16 flex-shrink-0">
                     <label className="block text-xs text-gray-500 mb-1">ĐVT</label>
                     <input
                         type="text"
@@ -125,7 +125,7 @@ const ReceiptItemCard = ({
                         placeholder="--"
                     />
                 </div>
-                <div>
+                <div className="flex-[1.5] min-w-0">
                     <label className="block text-xs text-gray-500 mb-1">Đơn giá</label>
                     <input
                         type="text"
