@@ -406,7 +406,7 @@ const ExpenseForm = ({
                                     const expensesData = manualItems.map(item => ({
                                         project_id: selectedProject.id,
                                         category_id: selectedCategory.id,
-                                        expense_date: manualDate,
+                                        date: manualDate,
                                         description: item.description || '',
                                         quantity: item.quantity || 1,
                                         unit: item.unit || null,
