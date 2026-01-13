@@ -48,7 +48,7 @@ const ExpenseCard = ({ expense, onEdit, onDelete, onDownload }) => {
                     {/* Download button - highlight when URL exists */}
                     <button
                         onClick={() => onDownload && onDownload({ ...expense, document_url: downloadUrl })}
-                        className={`p-1.5 rounded-lg transition-colors ${hasDownloadUrl
+                        className={`p-1.5 rounded-lg transition-colors flex items-center justify-center ${hasDownloadUrl
                             ? 'text-blue-600 bg-blue-100 hover:bg-blue-200'
                             : 'text-gray-300 cursor-default'}`}
                         aria-label="Tải tài liệu"

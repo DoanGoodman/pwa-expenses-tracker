@@ -294,34 +294,8 @@ const ExpenseForm = ({
                 ) : (
                     // ADD MODE - Multi-item form
                     <div className="expense-form-content">
-                        {/* Sticky Header: Tabs + Selection Summary */}
+                        {/* Sticky Header: Selection Summary only */}
                         <div className="manual-sticky-header">
-                            {/* Input Method Tabs (duplicated for sticky header in multi-item mode) */}
-                            <div className="flex gap-2 mb-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setInputMethod('manual')}
-                                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-medium transition-all text-sm ${inputMethod === 'manual'
-                                        ? 'bg-white border-2 border-primary text-primary shadow-sm'
-                                        : 'bg-gray-100 border-2 border-transparent text-gray-500'
-                                        }`}
-                                >
-                                    <Edit3 size={16} />
-                                    Nhập tay
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setInputMethod('invoice')}
-                                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-medium transition-all text-sm ${inputMethod === 'invoice'
-                                        ? 'bg-white border-2 border-primary text-primary shadow-sm'
-                                        : 'bg-gray-100 border-2 border-transparent text-gray-500'
-                                        }`}
-                                >
-                                    <ImagePlus size={16} />
-                                    Tải hóa đơn
-                                </button>
-                            </div>
-
                             {/* Selection Summary Bar */}
                             <div
                                 className="selection-summary-bar"
