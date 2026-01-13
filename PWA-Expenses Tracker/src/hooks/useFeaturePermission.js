@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 
-const TELEGRAM_WORKER_URL = 'https://telegram-approval.qswings.workers.dev'
+const TELEGRAM_WORKER_URL = 'https://telegram-approval.aiqswings87.workers.dev'
 
 /**
  * Hook to manage feature permissions

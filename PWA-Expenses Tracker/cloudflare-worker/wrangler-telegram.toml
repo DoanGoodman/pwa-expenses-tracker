@@ -1,0 +1,9 @@
+name = "telegram-approval"
+main = "telegram-approval-worker.js"
+compatibility_date = "2024-01-01"
+
+# Account ID - lấy từ Cloudflare Dashboard
+# account_id = "your-account-id"
+
+[vars]
+# Các biến môi trường sẽ được set bằng wrangler secret put
