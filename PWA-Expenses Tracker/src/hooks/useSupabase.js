@@ -237,11 +237,12 @@ export const useExpenses = (filters = {}) => {
                 return
             }
 
-            // 1. Build query with user_id filter
+            // 1. Build query with user_id filter (exclude soft-deleted items)
             let query = supabase
                 .from('expenses')
                 .select('*')
                 .eq('user_id', userId)
+                .is('deleted_at', null)
                 .order(sortColumn, { ascending })
 
             if (filters.projectId && filters.projectId !== 'all') {
@@ -427,18 +428,14 @@ export const useDeleteExpense = () => {
         }
 
         try {
-            // Step 1: Update last_change_reason BEFORE deleting (for trigger/audit)
-            if (reason) {
-                await supabase
-                    .from('expenses')
-                    .update({ last_change_reason: reason })
-                    .eq('id', id)
-            }
-
-            // Step 2: Perform the actual delete
+            // Soft delete: Set deleted_at timestamp instead of hard delete
+            // This allows recovery within 30 days
             const { error } = await supabase
                 .from('expenses')
-                .delete()
+                .update({
+                    deleted_at: new Date().toISOString(),
+                    last_change_reason: reason || 'Xóa chi phí'
+                })
                 .eq('id', id)
 
             if (error) throw error
@@ -539,10 +536,12 @@ export const useDashboardStats = (startMonth, endMonth, projectId = null) => {
                 }
 
                 // Build query with filters
+                // Exclude soft-deleted items from dashboard stats
                 let query = supabase
                     .from('expenses')
                     .select('*')
                     .eq('user_id', userId)
+                    .is('deleted_at', null)
 
                 if (startMonth && endMonth) {
                     const lastDay = getLastDayOfMonth(endMonth)
