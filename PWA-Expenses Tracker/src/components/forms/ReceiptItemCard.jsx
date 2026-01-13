@@ -128,10 +128,12 @@ const ReceiptItemCard = ({
                     <button
                         type="button"
                         onClick={() => setShowUnitSheet(true)}
-                        className="w-full h-[38px] px-2 border border-gray-200 rounded-lg text-sm text-center focus:outline-none focus:border-primary bg-white flex items-center justify-center gap-1"
+                        className="w-full h-[38px] px-1 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary bg-white"
                     >
-                        <span className="truncate">{getUnitLabel(localData.unit)}</span>
-                        <ChevronDown size={12} className="flex-shrink-0 text-gray-400" />
+                        <span className="inline-flex items-center justify-center gap-0.5 w-full">
+                            <span className="truncate text-xs">{getUnitLabel(localData.unit)}</span>
+                            <ChevronDown size={10} className="flex-shrink-0 text-gray-400" />
+                        </span>
                     </button>
                 </div>
                 <div className="flex-[1.5] min-w-0">
