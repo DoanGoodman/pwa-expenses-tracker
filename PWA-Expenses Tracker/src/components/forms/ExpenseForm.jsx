@@ -157,31 +157,33 @@ const ExpenseForm = ({
 
     return (
         <div className="expense-form-container">
-            {/* Input Method Tabs */}
-            <div className="flex gap-2 mb-4">
-                <button
-                    type="button"
-                    onClick={() => setInputMethod('manual')}
-                    className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium transition-all ${inputMethod === 'manual'
-                        ? 'bg-white border-2 border-primary text-primary shadow-sm'
-                        : 'bg-gray-100 border-2 border-transparent text-gray-500'
-                        }`}
-                >
-                    <Edit3 size={18} />
-                    Nhập tay
-                </button>
-                <button
-                    type="button"
-                    onClick={() => setInputMethod('invoice')}
-                    className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium transition-all ${inputMethod === 'invoice'
-                        ? 'bg-white border-2 border-primary text-primary shadow-sm'
-                        : 'bg-gray-100 border-2 border-transparent text-gray-500'
-                        }`}
-                >
-                    <ImagePlus size={18} />
-                    Tải hóa đơn
-                </button>
-            </div>
+            {/* Input Method Tabs - only show when NOT in manual add mode (multi-item mode has its own tabs in sticky header) */}
+            {!(inputMethod === 'manual' && !initialData) && (
+                <div className="flex gap-2 mb-4">
+                    <button
+                        type="button"
+                        onClick={() => setInputMethod('manual')}
+                        className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium transition-all ${inputMethod === 'manual'
+                            ? 'bg-white border-2 border-primary text-primary shadow-sm'
+                            : 'bg-gray-100 border-2 border-transparent text-gray-500'
+                            }`}
+                    >
+                        <Edit3 size={18} />
+                        Nhập tay
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setInputMethod('invoice')}
+                        className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium transition-all ${inputMethod === 'invoice'
+                            ? 'bg-white border-2 border-primary text-primary shadow-sm'
+                            : 'bg-gray-100 border-2 border-transparent text-gray-500'
+                            }`}
+                    >
+                        <ImagePlus size={18} />
+                        Tải hóa đơn
+                    </button>
+                </div>
+            )}
 
             {inputMethod === 'manual' ? (
                 initialData ? (
@@ -294,8 +296,34 @@ const ExpenseForm = ({
                 ) : (
                     // ADD MODE - Multi-item form
                     <div className="expense-form-content">
-                        {/* Sticky Header: Selection Summary only */}
+                        {/* Sticky Header: Tabs + Selection Summary */}
                         <div className="manual-sticky-header">
+                            {/* Input Method Tabs */}
+                            <div className="flex gap-2 mb-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setInputMethod('manual')}
+                                    className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium transition-all ${inputMethod === 'manual'
+                                        ? 'bg-white border-2 border-primary text-primary shadow-sm'
+                                        : 'bg-gray-100 border-2 border-transparent text-gray-500'
+                                        }`}
+                                >
+                                    <Edit3 size={18} />
+                                    Nhập tay
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setInputMethod('invoice')}
+                                    className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium transition-all ${inputMethod === 'invoice'
+                                        ? 'bg-white border-2 border-primary text-primary shadow-sm'
+                                        : 'bg-gray-100 border-2 border-transparent text-gray-500'
+                                        }`}
+                                >
+                                    <ImagePlus size={18} />
+                                    Tải hóa đơn
+                                </button>
+                            </div>
+
                             {/* Selection Summary Bar */}
                             <div
                                 className="selection-summary-bar"

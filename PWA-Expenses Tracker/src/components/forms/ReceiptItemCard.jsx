@@ -120,7 +120,7 @@ const ReceiptItemCard = ({
                         value={localData.quantity}
                         onChange={(e) => handleChange('quantity', e.target.value)}
                         onFocus={(e) => e.target.select()}
-                        className="w-full px-2 py-2 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:border-primary"
+                        className="w-full h-[38px] px-2 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:border-primary"
                     />
                 </div>
                 <div className="w-20 flex-shrink-0">
@@ -128,7 +128,7 @@ const ReceiptItemCard = ({
                     <button
                         type="button"
                         onClick={() => setShowUnitSheet(true)}
-                        className="w-full px-2 py-2 border border-gray-200 rounded-lg text-sm text-center focus:outline-none focus:border-primary bg-white flex items-center justify-center gap-1"
+                        className="w-full h-[38px] px-2 border border-gray-200 rounded-lg text-sm text-center focus:outline-none focus:border-primary bg-white flex items-center justify-center gap-1"
                     >
                         <span className="truncate">{getUnitLabel(localData.unit)}</span>
                         <ChevronDown size={12} className="flex-shrink-0 text-gray-400" />
@@ -142,7 +142,7 @@ const ReceiptItemCard = ({
                         value={localData.unit_price}
                         onChange={(e) => handleChange('unit_price', e.target.value)}
                         onFocus={(e) => e.target.select()}
-                        className="w-full px-2 py-2 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:border-primary"
+                        className="w-full h-[38px] px-2 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:border-primary"
                     />
                 </div>
             </div>
