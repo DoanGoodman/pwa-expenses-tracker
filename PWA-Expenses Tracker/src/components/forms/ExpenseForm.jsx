@@ -448,7 +448,7 @@ const ExpenseForm = ({
                     />
                 ) : (
                     // Permission required UI
-                    <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                    <div className="flex flex-col items-center justify-center py-8 px-4 text-center min-h-[300px]">
                         {permissionStatus === 'pending' ? (
                             <>
                                 <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mb-4">

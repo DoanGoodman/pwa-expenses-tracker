@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
+import { supabase, isDemoMode } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 
 const TELEGRAM_WORKER_URL = 'https://telegram-approval.aiqswings87.workers.dev'
 
@@ -9,6 +10,7 @@ const TELEGRAM_WORKER_URL = 'https://telegram-approval.aiqswings87.workers.dev'
  * @returns {Object} - { status, requestAccess, loading, error, refetch }
  */
 export function useFeaturePermission(featureName = 'receipt_scanner') {
+    const { user } = useAuth()
     const [status, setStatus] = useState('loading') // 'loading' | 'none' | 'pending' | 'approved' | 'rejected'
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
@@ -19,9 +21,15 @@ export function useFeaturePermission(featureName = 'receipt_scanner') {
         try {
             setLoading(true)
 
-            const { data: { user } } = await supabase.auth.getUser()
             if (!user) {
                 setStatus('none')
+                setLoading(false)
+                return
+            }
+
+            // Demo mode - auto approve for demo users
+            if (isDemoMode()) {
+                setStatus('approved')
                 setLoading(false)
                 return
             }
@@ -50,7 +58,7 @@ export function useFeaturePermission(featureName = 'receipt_scanner') {
         } finally {
             setLoading(false)
         }
-    }, [featureName])
+    }, [featureName, user])
 
     // Request access to feature
     const requestAccess = useCallback(async () => {
@@ -58,9 +66,14 @@ export function useFeaturePermission(featureName = 'receipt_scanner') {
             setRequesting(true)
             setError(null)
 
-            const { data: { user } } = await supabase.auth.getUser()
             if (!user) {
                 throw new Error('User not authenticated')
+            }
+
+            // Demo mode - auto approve
+            if (isDemoMode()) {
+                setStatus('approved')
+                return { success: true }
             }
 
             // Insert or update permission request
@@ -79,18 +92,22 @@ export function useFeaturePermission(featureName = 'receipt_scanner') {
             if (insertError) throw insertError
 
             // Notify admin via Telegram
-            const notifyResponse = await fetch(`${TELEGRAM_WORKER_URL}/notify`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    userId: user.id,
-                    userEmail: user.email,
-                    featureName: featureName
+            try {
+                const notifyResponse = await fetch(`${TELEGRAM_WORKER_URL}/notify`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: user.id,
+                        userEmail: user.email,
+                        featureName: featureName
+                    })
                 })
-            })
 
-            if (!notifyResponse.ok) {
-                console.warn('Failed to send Telegram notification')
+                if (!notifyResponse.ok) {
+                    console.warn('Failed to send Telegram notification')
+                }
+            } catch (telegramError) {
+                console.warn('Telegram notification failed:', telegramError)
             }
 
             setStatus('pending')
@@ -102,9 +119,9 @@ export function useFeaturePermission(featureName = 'receipt_scanner') {
         } finally {
             setRequesting(false)
         }
-    }, [featureName])
+    }, [featureName, user])
 
-    // Initial fetch
+    // Fetch permission when user changes
     useEffect(() => {
         fetchPermission()
     }, [fetchPermission])
