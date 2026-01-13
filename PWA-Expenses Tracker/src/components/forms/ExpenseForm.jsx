@@ -483,7 +483,7 @@ const ExpenseForm = ({
 
                         {/* Fixed Button at bottom - only show for 'none' or 'rejected' status */}
                         {(permissionStatus === 'none' || permissionStatus === 'rejected') && (
-                            <div className="fixed bottom-20 left-0 right-0 px-6 z-40">
+                            <div className="fixed bottom-28 left-0 right-0 px-6 z-40">
                                 <div className="max-w-[440px] mx-auto">
                                     <button
                                         onClick={requestAccess}
