@@ -2716,12 +2716,13 @@ a.bottom-nav-item {
     padding: 16px 16px 12px 16px;
 }
 
-/* Items container needs padding for edge spacing */
-.receipt-scanner-review>.space-y-3 {
-    padding: 0 16px;
+/* Receipt item cards use margin for edge spacing (not parent padding) */
+.receipt-scanner-review .receipt-item-card {
+    margin-left: 16px;
+    margin-right: 16px;
 }
 
-/* Add button needs padding for edge spacing */
+/* Add button needs margin for edge spacing */
 .receipt-scanner-review>button {
     margin: 0 16px;
     width: calc(100% - 32px);
