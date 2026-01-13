@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Save, X, Edit3, ImagePlus, ChevronDown, ChevronRight, Plus, CheckCircle2 } from 'lucide-react'
+import { Save, X, Edit3, ImagePlus, ChevronDown, ChevronRight, Plus, CheckCircle2, Lock, Send, Clock, XCircle } from 'lucide-react'
 import { formatAmountInput, parseAmount, formatDecimalInput, parseDecimal, formatDateVN } from '../../utils/formatters'
 import { CategoryIconComponent, getCategoryIconColor } from '../../utils/categoryIcons'
 import UnitBottomSheet, { UNIT_OPTIONS } from './UnitBottomSheet'
@@ -7,6 +7,7 @@ import SelectionBottomSheet from './SelectionBottomSheet'
 import ReceiptScanner from './ReceiptScanner'
 import ReceiptItemCard from './ReceiptItemCard'
 import { useBulkInsertExpenses } from '../../hooks/useSupabase'
+import { useFeaturePermission } from '../../hooks/useFeaturePermission'
 
 const ExpenseForm = ({
     projects,
@@ -18,6 +19,7 @@ const ExpenseForm = ({
     onBulkSaveSuccess
 }) => {
     const { bulkInsert, loading: bulkLoading } = useBulkInsertExpenses()
+    const { status: permissionStatus, requestAccess, requesting, refetch: refetchPermission, isApproved } = useFeaturePermission('receipt_scanner')
     const [inputMethod, setInputMethod] = useState('manual') // 'manual' or 'invoice'
     const [showUnitSheet, setShowUnitSheet] = useState(false)
     const [showSelectionSheet, setShowSelectionSheet] = useState(false)
@@ -430,19 +432,93 @@ const ExpenseForm = ({
                     </div>
                 )
             ) : (
-                // Receipt Scanner Mode
-                <ReceiptScanner
-                    projects={projects}
-                    categories={categories}
-                    onBulkSave={async (expensesData) => {
-                        const result = await bulkInsert(expensesData)
-                        if (result.success && onBulkSaveSuccess) {
-                            onBulkSaveSuccess(result.count)
-                        }
-                        return result
-                    }}
-                    loading={bulkLoading}
-                />
+                // Receipt Scanner Mode - Permission gated
+                isApproved ? (
+                    <ReceiptScanner
+                        projects={projects}
+                        categories={categories}
+                        onBulkSave={async (expensesData) => {
+                            const result = await bulkInsert(expensesData)
+                            if (result.success && onBulkSaveSuccess) {
+                                onBulkSaveSuccess(result.count)
+                            }
+                            return result
+                        }}
+                        loading={bulkLoading}
+                    />
+                ) : (
+                    // Permission required UI
+                    <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                        {permissionStatus === 'pending' ? (
+                            <>
+                                <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
+                                    <Clock size={32} className="text-yellow-500" />
+                                </div>
+                                <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                                    Đang chờ phê duyệt
+                                </h3>
+                                <p className="text-sm text-gray-500 mb-4">
+                                    Yêu cầu của bạn đã được gửi. Vui lòng chờ quản trị viên phê duyệt.
+                                </p>
+                                <button
+                                    onClick={refetchPermission}
+                                    className="text-primary text-sm font-medium hover:underline"
+                                >
+                                    Kiểm tra lại trạng thái
+                                </button>
+                            </>
+                        ) : permissionStatus === 'rejected' ? (
+                            <>
+                                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                                    <XCircle size={32} className="text-red-500" />
+                                </div>
+                                <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                                    Yêu cầu bị từ chối
+                                </h3>
+                                <p className="text-sm text-gray-500 mb-4">
+                                    Yêu cầu truy cập của bạn đã bị từ chối. Vui lòng liên hệ quản trị viên.
+                                </p>
+                                <button
+                                    onClick={requestAccess}
+                                    disabled={requesting}
+                                    className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                                >
+                                    <Send size={16} />
+                                    Gửi lại yêu cầu
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <div className="w-16 h-16 bg-primary-light rounded-full flex items-center justify-center mb-4">
+                                    <Lock size={32} className="text-primary" />
+                                </div>
+                                <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                                    Tính năng cần phê duyệt
+                                </h3>
+                                <p className="text-sm text-gray-500 mb-6">
+                                    Tính năng "Tải hoá đơn" cần được quản trị viên phê duyệt trước khi sử dụng.
+                                </p>
+                                <button
+                                    onClick={requestAccess}
+                                    disabled={requesting}
+                                    className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary-dark transition-colors disabled:opacity-50"
+                                >
+                                    {requesting ? (
+                                        <>
+                                            <span className="animate-spin">⏳</span>
+                                            Đang gửi...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Send size={18} />
+                                            Yêu cầu truy cập
+                                        </>
+                                    )}
+                                </button>
+                            </>
+                        )}
+                    </div>
+                )
             )}
 
             {/* Unit Bottom Sheet */}
