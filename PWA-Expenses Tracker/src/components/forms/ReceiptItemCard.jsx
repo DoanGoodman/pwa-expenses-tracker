@@ -110,7 +110,7 @@ const ReceiptItemCard = ({
                 />
             </div>
 
-            {/* Quantity, Unit, Unit Price in a row - matching ExpenseForm layout */}
+            {/* Quantity, Unit, Unit Price in a row - all same height 44px */}
             <div className="flex gap-2 mb-3">
                 <div className="flex-1 min-w-0">
                     <label className="block text-xs text-gray-500 mb-1">SL</label>
@@ -120,7 +120,7 @@ const ReceiptItemCard = ({
                         value={localData.quantity}
                         onChange={(e) => handleChange('quantity', e.target.value)}
                         onFocus={(e) => e.target.select()}
-                        className="w-full h-[38px] px-2 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:border-primary"
+                        className="w-full h-[44px] px-2 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:border-primary"
                     />
                 </div>
                 <div className="w-20 flex-shrink-0">
@@ -128,7 +128,7 @@ const ReceiptItemCard = ({
                     <button
                         type="button"
                         onClick={() => setShowUnitSheet(true)}
-                        className="w-full h-[38px] px-1 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary bg-white"
+                        className="w-full h-[44px] px-1 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary bg-white"
                     >
                         <span className="inline-flex items-center justify-center gap-0.5 w-full">
                             <span className="truncate text-xs">{getUnitLabel(localData.unit)}</span>
@@ -144,7 +144,7 @@ const ReceiptItemCard = ({
                         value={localData.unit_price}
                         onChange={(e) => handleChange('unit_price', e.target.value)}
                         onFocus={(e) => e.target.select()}
-                        className="w-full h-[38px] px-2 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:border-primary"
+                        className="w-full h-[44px] px-2 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:border-primary"
                     />
                 </div>
             </div>
