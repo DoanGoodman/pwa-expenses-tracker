@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
-import { Menu, FileSpreadsheet, FileText, User, LogOut } from 'lucide-react'
+import { Menu, FileSpreadsheet, FileText, User, LogOut, Trash2 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
-const Header = ({ title, onExportExcel, onExportPDF, leftAction }) => {
+const Header = ({ title, onExportExcel, onExportPDF, onRecycleBin, leftAction }) => {
     const { user, signOut } = useAuth()
     const [showMenuDropdown, setShowMenuDropdown] = useState(false)
     const [showUserDropdown, setShowUserDropdown] = useState(false)
@@ -30,6 +30,11 @@ const Header = ({ title, onExportExcel, onExportPDF, leftAction }) => {
 
     const handleExportPDFClick = () => {
         if (onExportPDF) onExportPDF()
+        setShowMenuDropdown(false)
+    }
+
+    const handleRecycleBinClick = () => {
+        if (onRecycleBin) onRecycleBin()
         setShowMenuDropdown(false)
     }
 
@@ -73,7 +78,13 @@ const Header = ({ title, onExportExcel, onExportPDF, leftAction }) => {
                                         <span>Xuất PDF</span>
                                     </button>
                                 )}
-                                {!onExportExcel && !onExportPDF && (
+                                {onRecycleBin && (
+                                    <button onClick={handleRecycleBinClick} className="dropdown-item">
+                                        <Trash2 size={18} />
+                                        <span>Thùng rác</span>
+                                    </button>
+                                )}
+                                {!onExportExcel && !onExportPDF && !onRecycleBin && (
                                     <div className="p-3 text-sm text-gray-500 text-center">
                                         Không có hành động
                                     </div>
