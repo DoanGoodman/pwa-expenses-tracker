@@ -488,7 +488,8 @@ const ExpenseForm = ({
                                     <button
                                         onClick={requestAccess}
                                         disabled={requesting}
-                                        className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-primary text-white rounded-2xl font-semibold shadow-lg disabled:opacity-50"
+                                        style={{ backgroundColor: '#14b8a6', color: '#ffffff' }}
+                                        className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl font-semibold shadow-lg disabled:opacity-50"
                                     >
                                         {requesting ? (
                                             'Đang gửi yêu cầu...'
