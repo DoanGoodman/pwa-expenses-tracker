@@ -447,76 +447,52 @@ const ExpenseForm = ({
                         loading={bulkLoading}
                     />
                 ) : (
-                    // Permission required UI
-                    <div className="flex flex-col items-center justify-center py-8 px-4 text-center min-h-[400px] pb-12">
-                        {permissionStatus === 'pending' ? (
-                            <>
-                                <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
-                                    <Clock size={32} className="text-yellow-500" />
-                                </div>
-                                <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                                    Đang chờ phê duyệt
-                                </h3>
-                                <p className="text-sm text-gray-500 mb-4">
-                                    Yêu cầu của bạn đã được gửi. Vui lòng chờ quản trị viên phê duyệt.
-                                </p>
-                                <button
-                                    onClick={refetchPermission}
-                                    className="text-primary text-sm font-medium hover:underline"
-                                >
-                                    Kiểm tra lại trạng thái
-                                </button>
-                            </>
-                        ) : permissionStatus === 'rejected' ? (
-                            <>
-                                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-                                    <XCircle size={32} className="text-red-500" />
-                                </div>
-                                <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                                    Yêu cầu bị từ chối
-                                </h3>
-                                <p className="text-sm text-gray-500 mb-4">
-                                    Yêu cầu truy cập của bạn đã bị từ chối. Vui lòng liên hệ quản trị viên.
-                                </p>
-                                <button
-                                    onClick={requestAccess}
-                                    disabled={requesting}
-                                    className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                                >
-                                    <Send size={16} />
-                                    Gửi lại yêu cầu
-                                </button>
-                            </>
-                        ) : (
-                            <>
-                                <div className="w-16 h-16 bg-primary-light rounded-full flex items-center justify-center mb-4">
-                                    <Lock size={32} className="text-primary" />
-                                </div>
-                                <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                                    Tính năng cần phê duyệt
-                                </h3>
-                                <p className="text-sm text-gray-500 mb-6">
-                                    Tính năng "Tải hoá đơn" cần được quản trị viên phê duyệt trước khi sử dụng.
-                                </p>
-                                <button
-                                    onClick={requestAccess}
-                                    disabled={requesting}
-                                    className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary-dark transition-colors disabled:opacity-50"
-                                >
-                                    {requesting ? (
-                                        <>
-                                            <span className="animate-spin">⏳</span>
-                                            Đang gửi...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Send size={18} />
-                                            Yêu cầu truy cập
-                                        </>
-                                    )}
-                                </button>
-                            </>
-                        )}
+                    // Permission required UI - compact layout
+                    <div className="p-6">
+                        <div className="bg-gray-50 rounded-2xl p-6 text-center">
+                            {permissionStatus === 'pending' ? (
+                                <>
+                                    <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                        <Clock size={24} className="text-yellow-500" />
+                                    </div>
+                                    <h3 className="text-base font-semibold text-gray-800 mb-1">Đang chờ phê duyệt</h3>
+                                    <p className="text-sm text-gray-500 mb-3">Vui lòng chờ quản trị viên phê duyệt.</p>
+                                    <button onClick={refetchPermission} className="text-primary text-sm font-medium">
+                                        Kiểm tra lại
+                                    </button>
+                                </>
+                            ) : permissionStatus === 'rejected' ? (
+                                <>
+                                    <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                        <XCircle size={24} className="text-red-500" />
+                                    </div>
+                                    <h3 className="text-base font-semibold text-gray-800 mb-1">Yêu cầu bị từ chối</h3>
+                                    <p className="text-sm text-gray-500 mb-3">Vui lòng liên hệ quản trị viên.</p>
+                                    <button
+                                        onClick={requestAccess}
+                                        disabled={requesting}
+                                        className="inline-flex items-center gap-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm"
+                                    >
+                                        <Send size={14} /> Gửi lại
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                                        <Lock size={24} className="text-primary" />
+                                    </div>
+                                    <h3 className="text-base font-semibold text-gray-800 mb-1">Tính năng cần phê duyệt</h3>
+                                    <p className="text-sm text-gray-500 mb-4">Tính năng này cần được phê duyệt trước khi sử dụng.</p>
+                                    <button
+                                        onClick={requestAccess}
+                                        disabled={requesting}
+                                        className="inline-flex items-center justify-center gap-2 w-full px-4 py-3 bg-primary text-white rounded-xl font-medium disabled:opacity-50"
+                                    >
+                                        {requesting ? 'Đang gửi...' : <><Send size={16} /> Yêu cầu truy cập</>}
+                                    </button>
+                                </>
+                            )}
+                        </div>
                     </div>
                 )
             )}
