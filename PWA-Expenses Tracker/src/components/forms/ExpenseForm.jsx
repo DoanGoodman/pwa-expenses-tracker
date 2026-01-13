@@ -294,29 +294,58 @@ const ExpenseForm = ({
                 ) : (
                     // ADD MODE - Multi-item form
                     <div className="expense-form-content">
-                        {/* Selection Summary Bar */}
-                        <div
-                            className="selection-summary-bar"
-                            onClick={() => setShowSelectionSheet(true)}
-                        >
-                            <div className="summary-content">
-                                <div className="summary-title">
-                                    {selectedProject?.name || 'Chọn dự án chung *'}
-                                </div>
-                                <div className="summary-subtitle">
-                                    {selectedCategory ? (
-                                        <span className="flex items-center gap-1.5 font-medium">
-                                            <CategoryIconComponent categoryName={selectedCategory.name} size={14} />
-                                            <span className={getCategoryIconColor(selectedCategory.name)}>{selectedCategory.name}</span>
-                                        </span>
-                                    ) : (
-                                        <span className="text-gray-400">Chọn danh mục chung *</span>
-                                    )}
-                                    <span className="text-gray-300 mx-1">•</span>
-                                    <span>{formatDateVN(manualDate)}</span>
-                                </div>
+                        {/* Sticky Header: Tabs + Selection Summary */}
+                        <div className="manual-sticky-header">
+                            {/* Input Method Tabs (duplicated for sticky header in multi-item mode) */}
+                            <div className="flex gap-2 mb-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setInputMethod('manual')}
+                                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-medium transition-all text-sm ${inputMethod === 'manual'
+                                        ? 'bg-white border-2 border-primary text-primary shadow-sm'
+                                        : 'bg-gray-100 border-2 border-transparent text-gray-500'
+                                        }`}
+                                >
+                                    <Edit3 size={16} />
+                                    Nhập tay
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setInputMethod('invoice')}
+                                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-medium transition-all text-sm ${inputMethod === 'invoice'
+                                        ? 'bg-white border-2 border-primary text-primary shadow-sm'
+                                        : 'bg-gray-100 border-2 border-transparent text-gray-500'
+                                        }`}
+                                >
+                                    <ImagePlus size={16} />
+                                    Tải hóa đơn
+                                </button>
                             </div>
-                            <ChevronRight className="summary-arrow" size={20} />
+
+                            {/* Selection Summary Bar */}
+                            <div
+                                className="selection-summary-bar"
+                                onClick={() => setShowSelectionSheet(true)}
+                            >
+                                <div className="summary-content">
+                                    <div className="summary-title">
+                                        {selectedProject?.name || 'Chọn dự án chung *'}
+                                    </div>
+                                    <div className="summary-subtitle">
+                                        {selectedCategory ? (
+                                            <span className="flex items-center gap-1.5 font-medium">
+                                                <CategoryIconComponent categoryName={selectedCategory.name} size={14} />
+                                                <span className={getCategoryIconColor(selectedCategory.name)}>{selectedCategory.name}</span>
+                                            </span>
+                                        ) : (
+                                            <span className="text-gray-400">Chọn danh mục chung *</span>
+                                        )}
+                                        <span className="text-gray-300 mx-1">•</span>
+                                        <span>{formatDateVN(manualDate)}</span>
+                                    </div>
+                                </div>
+                                <ChevronRight className="summary-arrow" size={20} />
+                            </div>
                         </div>
 
                         {/* Items List */}

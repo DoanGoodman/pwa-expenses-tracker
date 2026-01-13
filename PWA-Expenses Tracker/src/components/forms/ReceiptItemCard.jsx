@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Trash2, AlertTriangle } from 'lucide-react'
+import { Trash2, AlertTriangle, ChevronDown } from 'lucide-react'
 import { formatAmountInput, parseAmount } from '../../utils/formatters'
+import UnitBottomSheet, { UNIT_OPTIONS } from './UnitBottomSheet'
 
 const ReceiptItemCard = ({
     item,
@@ -26,6 +27,13 @@ const ReceiptItemCard = ({
         unit_price: item.unit_price ? formatAmountInput(item.unit_price) : ''
     })
     const [hasBeenEdited, setHasBeenEdited] = useState(false)
+    const [showUnitSheet, setShowUnitSheet] = useState(false)
+
+    // Get unit display label
+    const getUnitLabel = (value) => {
+        const option = UNIT_OPTIONS.find(opt => opt.value === value)
+        return option ? option.label : (value || 'Chọn')
+    }
 
     // Parse quantity string (remove thousand separators before parsing)
     const parseQuantity = (value) => {
@@ -115,15 +123,16 @@ const ReceiptItemCard = ({
                         className="w-full px-2 py-2 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:border-primary"
                     />
                 </div>
-                <div className="w-16 flex-shrink-0">
+                <div className="w-20 flex-shrink-0">
                     <label className="block text-xs text-gray-500 mb-1">ĐVT</label>
-                    <input
-                        type="text"
-                        value={localData.unit}
-                        onChange={(e) => handleChange('unit', e.target.value)}
-                        className="w-full px-2 py-2 border border-gray-200 rounded-lg text-sm text-center focus:outline-none focus:border-primary"
-                        placeholder="--"
-                    />
+                    <button
+                        type="button"
+                        onClick={() => setShowUnitSheet(true)}
+                        className="w-full px-2 py-2 border border-gray-200 rounded-lg text-sm text-center focus:outline-none focus:border-primary bg-white flex items-center justify-center gap-1"
+                    >
+                        <span className="truncate">{getUnitLabel(localData.unit)}</span>
+                        <ChevronDown size={12} className="flex-shrink-0 text-gray-400" />
+                    </button>
                 </div>
                 <div className="flex-[1.5] min-w-0">
                     <label className="block text-xs text-gray-500 mb-1">Đơn giá</label>
@@ -145,6 +154,14 @@ const ReceiptItemCard = ({
                     {new Intl.NumberFormat('en-US').format(Math.round(calculatedAmount))} đ
                 </span>
             </div>
+
+            {/* Unit Bottom Sheet */}
+            <UnitBottomSheet
+                isOpen={showUnitSheet}
+                onClose={() => setShowUnitSheet(false)}
+                selectedUnit={localData.unit}
+                onSelect={(value) => handleChange('unit', value)}
+            />
         </div>
     )
 }

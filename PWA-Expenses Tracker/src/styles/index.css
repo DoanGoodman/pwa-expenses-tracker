@@ -2715,3 +2715,13 @@ a.bottom-nav-item {
     background: linear-gradient(to bottom, #f8fafc 0%, #f8fafc 90%, transparent 100%);
     padding: 16px 0 12px 0;
 }
+
+/* Sticky header for manual multi-item mode */
+.manual-sticky-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: linear-gradient(to bottom, #f8fafc 0%, #f8fafc 95%, transparent 100%);
+    padding-bottom: 12px;
+    margin-bottom: 8px;
+}
