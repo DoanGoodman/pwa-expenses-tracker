@@ -2707,28 +2707,11 @@ a.bottom-nav-item {
     padding: 0 0 16px 0;
 }
 
-/* Sticky header for receipt review - needs its own side padding for edge spacing */
+/* Sticky header for receipt review - no side padding to match 416px width */
 .receipt-sticky-header {
     position: sticky;
     top: 0;
     z-index: 10;
     background: linear-gradient(to bottom, #f8fafc 0%, #f8fafc 90%, transparent 100%);
-    padding: 16px 16px 12px 16px;
-}
-
-/* Receipt item cards use margin for edge spacing (not parent padding) */
-.receipt-scanner-review .receipt-item-card {
-    margin-left: 16px;
-    margin-right: 16px;
-}
-
-/* Add button needs margin for edge spacing */
-.receipt-scanner-review>button {
-    margin: 0 16px;
-    width: calc(100% - 32px);
-}
-
-/* Total summary needs margin for edge spacing */
-.receipt-scanner-review>.bg-gradient-to-r {
-    margin: 0 16px;
+    padding: 16px 0 12px 0;
 }
