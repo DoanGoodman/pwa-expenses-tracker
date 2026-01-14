@@ -18,9 +18,9 @@ export const AuthProvider = ({ children }) => {
     const [userRole, setUserRole] = useState(null) // 'owner' | 'staff' | null
     const [loading, setLoading] = useState(true)
 
-    // Fetch user profile from profiles table
-    const fetchProfile = useCallback(async (userId) => {
-        console.log('fetchProfile called with userId:', userId)
+    // Fetch user profile from profiles table với retry
+    const fetchProfile = useCallback(async (userId, retryCount = 0) => {
+        console.log('fetchProfile called with userId:', userId, 'retry:', retryCount)
         if (!userId) {
             setProfile(null)
             setUserRole(null)
@@ -28,7 +28,7 @@ export const AuthProvider = ({ children }) => {
         }
 
         try {
-            // Thêm timeout 5 giây để tránh hang
+            // Timeout 5 giây cho mỗi attempt
             const timeoutPromise = new Promise((_, reject) =>
                 setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
             )
@@ -55,6 +55,14 @@ export const AuthProvider = ({ children }) => {
             console.log('userRole set to:', data?.role || 'owner')
         } catch (err) {
             console.error('Error in fetchProfile:', err)
+
+            // Retry 1 lần sau 1 giây nếu timeout
+            if (retryCount < 1 && err.message === 'Profile fetch timeout') {
+                console.log('Retrying fetchProfile after delay...')
+                await new Promise(resolve => setTimeout(resolve, 1000))
+                return fetchProfile(userId, retryCount + 1)
+            }
+
             // Timeout hoặc lỗi khác, mặc định là owner
             setUserRole('owner')
         }
