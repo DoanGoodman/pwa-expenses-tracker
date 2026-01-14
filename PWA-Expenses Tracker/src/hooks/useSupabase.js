@@ -1,10 +1,40 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase, demoData, isDemoMode } from '../lib/supabase'
 
-// Helper function to get current user ID
+// Cache userId để tránh gọi Supabase nhiều lần
+let cachedUserId = null
+
+// Helper function to get current user ID với cache
+// Sử dụng getSession() thay vì getUser() vì nhanh hơn
 const getCurrentUserId = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    return user?.id || null
+    // Return cached value nếu có
+    if (cachedUserId) return cachedUserId
+
+    try {
+        // Sử dụng getSession() - nhanh hơn getUser() vì không verify với server
+        const { data: { session }, error } = await supabase.auth.getSession()
+
+        if (error) {
+            console.error('Error getting session:', error)
+            return null
+        }
+
+        cachedUserId = session?.user?.id || null
+        return cachedUserId
+    } catch (error) {
+        console.error('Error getting user ID:', error)
+        return null
+    }
+}
+
+// Function để clear cache khi logout
+export const clearUserIdCache = () => {
+    cachedUserId = null
+}
+
+// Function để set cache từ bên ngoài (ví dụ từ AuthContext)
+export const setUserIdCache = (userId) => {
+    cachedUserId = userId
 }
 
 // Helper function to get the last day of a month
@@ -38,7 +68,7 @@ export const useProjects = () => {
             const { data, error } = await supabase
                 .from('projects')
                 .select('*')
-                .eq('user_id', userId)
+                // RLS determines visibility (Own + Parent's)
                 .order('name')
 
             if (error) throw error
@@ -109,7 +139,7 @@ export const useProjects = () => {
             const { data, error } = await supabase
                 .from('projects')
                 .select('name')
-                .eq('user_id', userId)
+                // RLS Check: user sees own and parent's projects
                 .ilike('name', trimmedName)
 
             if (error) throw error
@@ -121,7 +151,73 @@ export const useProjects = () => {
         }
     }
 
-    return { projects, loading, addProject, checkProjectExists, refetch: fetchProjects }
+    // --- Project Assignments Helpers (For Owner) ---
+
+    // Lấy danh sách dự án được assign cho một staff
+    const getStaffAssignments = async (staffId) => {
+        try {
+            const { data, error } = await supabase
+                .from('project_assignments')
+                .select('project_id')
+                .eq('staff_id', staffId)
+
+            if (error) throw error
+            return data.map(item => item.project_id)
+        } catch (error) {
+            console.error('Error fetching assignments:', error)
+            return []
+        }
+    }
+
+    // Cập nhật danh sách dự án cho staff (assign/unassign hàng loạt)
+    const updateStaffAssignments = async (staffId, projectIds) => {
+        try {
+            // 1. Lấy assignments hiện tại
+            const currentIds = await getStaffAssignments(staffId)
+
+            // 2. Tìm cái cần thêm và cái cần xóa
+            const toAdd = projectIds.filter(id => !currentIds.includes(id))
+            const toRemove = currentIds.filter(id => !projectIds.includes(id))
+
+            if (toRemove.length > 0) {
+                const { error: delError } = await supabase
+                    .from('project_assignments')
+                    .delete()
+                    .eq('staff_id', staffId)
+                    .in('project_id', toRemove)
+                if (delError) throw delError
+            }
+
+            if (toAdd.length > 0) {
+                const currentUserId = await getCurrentUserId()
+                const { error: insError } = await supabase
+                    .from('project_assignments')
+                    .insert(
+                        toAdd.map(projectId => ({
+                            staff_id: staffId,
+                            project_id: projectId,
+                            assigned_by: currentUserId
+                        }))
+                    )
+                if (insError) throw insError
+            }
+
+            return { success: true }
+        } catch (error) {
+            console.error('Error updating assignments:', error)
+            return { success: false, error: error.message }
+        }
+    }
+
+    return {
+        projects,
+        loading,
+        addProject,
+        checkProjectExists,
+        refetch: fetchProjects,
+        getStaffAssignments,
+        updateStaffAssignments
+    }
 }
 
 // Hook để lấy danh sách categories
@@ -278,8 +374,9 @@ export const useExpenses = (filters = {}) => {
 
             if (expensesData) {
                 // 2. Fetch Projects and Categories for manual join
+                // RLS handles visibility for projects
                 const [projectsResponse, categoriesResponse] = await Promise.all([
-                    supabase.from('projects').select('id, name').eq('user_id', userId),
+                    supabase.from('projects').select('id, name'),
                     supabase.from('categories').select('id, name')
                 ])
 

@@ -1,4 +1,7 @@
-const CACHE_NAME = 'gg-expenses-v3';
+// ⚠️ QUAN TRỌNG: Thay đổi APP_VERSION mỗi khi deploy để trigger cập nhật
+// Ví dụ: 'v2', 'v3', '2024-01-14-1', etc.
+const APP_VERSION = 'v6';
+const CACHE_NAME = `gg-expenses-${APP_VERSION}`;
 const urlsToCache = [
     '/',
     '/index.html',
@@ -14,7 +17,14 @@ self.addEventListener('install', (event) => {
                 return cache.addAll(urlsToCache);
             })
     );
-    self.skipWaiting();
+    // Không gọi self.skipWaiting() ở đây để cho phép người dùng kiểm soát cập nhật
+});
+
+// Lắng nghe message từ client để kích hoạt SW mới
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
 });
 
 // Activate event
