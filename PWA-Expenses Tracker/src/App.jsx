@@ -36,20 +36,14 @@ const AppContent = () => {
     if (!loading && isAuthenticated) {
       const currentPath = location.pathname
 
-      // Owner: redirect về / nếu đang ở trang không phù hợp
-      if (isOwner && currentPath !== '/' && currentPath !== '/documents' && currentPath !== '/recycle-bin') {
-        // Nếu owner đang ở /expenses hoặc /add, redirect về trang chủ
-        if (currentPath === '/expenses' || currentPath === '/add') {
-          navigate('/', { replace: true })
-        }
-      }
-
       // Staff: redirect về /expenses nếu đang ở trang owner-only
       if (isStaff && (currentPath === '/' || currentPath === '/documents' || currentPath === '/recycle-bin')) {
         navigate('/expenses', { replace: true })
       }
+
+      // Owner: Không cần redirect gì đặc biệt, họ được vào tất cả
     }
-  }, [loading, isAuthenticated, isOwner, isStaff, location.pathname, navigate])
+  }, [loading, isAuthenticated, isStaff, location.pathname, navigate])
 
   if (loading) {
     return (
