@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { Mail, Lock, Eye, EyeOff, Loader2, CheckCircle } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, Loader2, CheckCircle, User, Users } from 'lucide-react'
 import ForgotPasswordBottomSheet from '../components/auth/ForgotPasswordBottomSheet'
 
 // Google Icon SVG Component
@@ -16,7 +16,9 @@ const GoogleIcon = () => (
 const Login = () => {
     const { signIn, signUp, signInWithGoogle } = useAuth()
     const [isLogin, setIsLogin] = useState(true)
+    const [isStaffLogin, setIsStaffLogin] = useState(false) // Toggle cho Staff login
     const [email, setEmail] = useState('')
+    const [username, setUsername] = useState('') // Username cho Staff
     const [password, setPassword] = useState('')
     const [showPassword, setShowPassword] = useState(false)
     const [rememberMe, setRememberMe] = useState(false)
@@ -33,16 +35,27 @@ const Login = () => {
 
         try {
             if (isLogin) {
-                // Đăng nhập
-                const result = await signIn(email, password)
+                // Xác định email để đăng nhập
+                let loginEmail = email
+
+                // Nếu là Staff login mode, chuyển username thành email ảo
+                if (isStaffLogin) {
+                    if (!username.trim()) {
+                        setError('Vui lòng nhập tên đăng nhập')
+                        setLoading(false)
+                        return
+                    }
+                    loginEmail = `${username.toLowerCase()}@qswings.app`
+                }
+
+                const result = await signIn(loginEmail, password)
                 if (!result.success) {
                     setError(result.error || 'Có lỗi xảy ra')
                 }
             } else {
-                // Đăng ký
+                // Đăng ký (chỉ dành cho Owner mode)
                 const result = await signUp(email, password)
                 if (result.success) {
-                    // Hiển thị màn hình thành công
                     setRegistrationSuccess(true)
                 } else {
                     setError(result.error || 'Có lỗi xảy ra')
@@ -76,6 +89,14 @@ const Login = () => {
         setEmail('')
         setPassword('')
         setError('')
+    }
+
+    const toggleLoginMode = () => {
+        setIsStaffLogin(!isStaffLogin)
+        setError('')
+        setEmail('')
+        setUsername('')
+        setPassword('')
     }
 
     // Màn hình thông báo đăng ký thành công
@@ -117,9 +138,41 @@ const Login = () => {
                     />
                     <h1 className="login-title">Cost Tracker</h1>
                     <p className="login-subtitle">
-                        {isLogin ? 'Đăng nhập để tiếp tục' : 'Tạo tài khoản mới'}
+                        {isLogin
+                            ? (isStaffLogin ? 'Đăng nhập nhân viên' : 'Đăng nhập để tiếp tục')
+                            : 'Tạo tài khoản mới'}
                     </p>
                 </div>
+
+                {/* Toggle Owner/Staff Mode (chỉ hiển thị khi Login) */}
+                {isLogin && (
+                    <div className="flex justify-center mb-4">
+                        <div className="inline-flex rounded-xl bg-slate-100 p-1">
+                            <button
+                                type="button"
+                                onClick={() => { setIsStaffLogin(false); setError(''); }}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${!isStaffLogin
+                                        ? 'bg-white text-primary shadow-sm'
+                                        : 'text-slate-500 hover:text-slate-700'
+                                    }`}
+                            >
+                                <User size={16} />
+                                Chủ sở hữu
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => { setIsStaffLogin(true); setError(''); }}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${isStaffLogin
+                                        ? 'bg-white text-primary shadow-sm'
+                                        : 'text-slate-500 hover:text-slate-700'
+                                    }`}
+                            >
+                                <Users size={16} />
+                                Nhân viên
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 {/* Error Message */}
                 {error && (
@@ -128,42 +181,61 @@ const Login = () => {
                     </div>
                 )}
 
-                {/* Google Login Button */}
-                <button
-                    type="button"
-                    onClick={handleGoogleLogin}
-                    disabled={googleLoading}
-                    className="login-btn-google"
-                >
-                    {googleLoading ? (
-                        <Loader2 size={20} className="animate-spin" />
-                    ) : (
-                        <>
-                            <GoogleIcon />
-                            <span>Tiếp tục với Google</span>
-                        </>
-                    )}
-                </button>
+                {/* Google Login Button - Chỉ hiển thị cho Owner mode */}
+                {!isStaffLogin && (
+                    <>
+                        <button
+                            type="button"
+                            onClick={handleGoogleLogin}
+                            disabled={googleLoading}
+                            className="login-btn-google"
+                        >
+                            {googleLoading ? (
+                                <Loader2 size={20} className="animate-spin" />
+                            ) : (
+                                <>
+                                    <GoogleIcon />
+                                    <span>Tiếp tục với Google</span>
+                                </>
+                            )}
+                        </button>
 
-                {/* Divider */}
-                <div className="login-divider">
-                    <span>hoặc</span>
-                </div>
+                        {/* Divider */}
+                        <div className="login-divider">
+                            <span>hoặc</span>
+                        </div>
+                    </>
+                )}
 
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="login-form">
-                    {/* Email Input */}
-                    <div className="login-input-group">
-                        <Mail size={20} className="login-input-icon" />
-                        <input
-                            type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            placeholder="Email"
-                            className="login-input"
-                            required
-                        />
-                    </div>
+                    {/* Username Input - Chỉ cho Staff mode */}
+                    {isStaffLogin && isLogin ? (
+                        <div className="login-input-group">
+                            <User size={20} className="login-input-icon" />
+                            <input
+                                type="text"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                                placeholder="Tên đăng nhập"
+                                className="login-input"
+                                required
+                            />
+                        </div>
+                    ) : (
+                        /* Email Input - Cho Owner mode */
+                        <div className="login-input-group">
+                            <Mail size={20} className="login-input-icon" />
+                            <input
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                placeholder="Email"
+                                className="login-input"
+                                required
+                            />
+                        </div>
+                    )}
 
                     {/* Password Input */}
                     <div className="login-input-group">
@@ -186,8 +258,8 @@ const Login = () => {
                         </button>
                     </div>
 
-                    {/* Remember Me & Forgot Password - Only for Login */}
-                    {isLogin && (
+                    {/* Remember Me & Forgot Password - Only for Owner Login */}
+                    {isLogin && !isStaffLogin && (
                         <div className="login-options">
                             <label className="login-remember">
                                 <input
@@ -208,6 +280,13 @@ const Login = () => {
                         </div>
                     )}
 
+                    {/* Staff Login Hint */}
+                    {isStaffLogin && isLogin && (
+                        <p className="text-xs text-slate-500 text-center mb-3">
+                            Nhập tên đăng nhập do chủ sở hữu cung cấp
+                        </p>
+                    )}
+
                     {/* Submit Button */}
                     <button
                         type="submit"
@@ -221,17 +300,19 @@ const Login = () => {
                         )}
                     </button>
 
-                    {/* Toggle Login/Register */}
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setIsLogin(!isLogin)
-                            setError('')
-                        }}
-                        className="login-btn-secondary"
-                    >
-                        {isLogin ? 'Tạo tài khoản' : 'Đã có tài khoản? Đăng nhập'}
-                    </button>
+                    {/* Toggle Login/Register - Chỉ cho Owner mode */}
+                    {!isStaffLogin && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setIsLogin(!isLogin)
+                                setError('')
+                            }}
+                            className="login-btn-secondary"
+                        >
+                            {isLogin ? 'Tạo tài khoản' : 'Đã có tài khoản? Đăng nhập'}
+                        </button>
+                    )}
                 </form>
             </div>
 
@@ -245,6 +326,3 @@ const Login = () => {
 }
 
 export default Login
-
-
-

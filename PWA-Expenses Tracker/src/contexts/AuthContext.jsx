@@ -87,10 +87,10 @@ export const AuthProvider = ({ children }) => {
 
         getSession()
 
-        // Safety timeout: nếu sau 10 giây vẫn loading, force set loading = false
+        // Safety timeout: nếu sau 5 giây vẫn loading, force set loading = false
         const safetyTimeout = setTimeout(() => {
             setLoading(false)
-        }, 10000)
+        }, 5000)
 
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
