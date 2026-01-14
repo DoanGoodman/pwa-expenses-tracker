@@ -101,17 +101,23 @@ export const AuthProvider = ({ children }) => {
             cacheProfile(data, data?.role || 'owner')
             console.log('userRole set to:', data?.role || 'owner')
         } catch (err) {
-            console.error('Error in fetchProfile:', err)
+            // Chỉ log warning cho timeout (không phải error nghiêm trọng)
+            if (err.message === 'Profile fetch timeout') {
+                console.warn('fetchProfile timeout, retry:', retryCount)
+            } else {
+                console.error('Error in fetchProfile:', err)
+            }
 
             // Retry 2 lần sau 500ms nếu timeout
             if (retryCount < 2 && err.message === 'Profile fetch timeout') {
-                console.log('Retrying fetchProfile after delay... attempt', retryCount + 1)
                 await new Promise(resolve => setTimeout(resolve, 500))
                 return fetchProfile(userId, retryCount + 1)
             }
 
-            // Timeout hoặc lỗi khác, mặc định là owner
-            setUserRole('owner')
+            // Timeout hoặc lỗi khác - nếu đã có cache thì không cần set mặc định
+            if (!userRole) {
+                setUserRole('owner')
+            }
         }
     }, [])
 
