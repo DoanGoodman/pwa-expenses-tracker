@@ -151,7 +151,73 @@ export const useProjects = () => {
         }
     }
 
-    return { projects, loading, addProject, checkProjectExists, refetch: fetchProjects }
+    // --- Project Assignments Helpers (For Owner) ---
+
+    // Lấy danh sách dự án được assign cho một staff
+    const getStaffAssignments = async (staffId) => {
+        try {
+            const { data, error } = await supabase
+                .from('project_assignments')
+                .select('project_id')
+                .eq('staff_id', staffId)
+
+            if (error) throw error
+            return data.map(item => item.project_id)
+        } catch (error) {
+            console.error('Error fetching assignments:', error)
+            return []
+        }
+    }
+
+    // Cập nhật danh sách dự án cho staff (assign/unassign hàng loạt)
+    const updateStaffAssignments = async (staffId, projectIds) => {
+        try {
+            // 1. Lấy assignments hiện tại
+            const currentIds = await getStaffAssignments(staffId)
+
+            // 2. Tìm cái cần thêm và cái cần xóa
+            const toAdd = projectIds.filter(id => !currentIds.includes(id))
+            const toRemove = currentIds.filter(id => !projectIds.includes(id))
+
+            if (toRemove.length > 0) {
+                const { error: delError } = await supabase
+                    .from('project_assignments')
+                    .delete()
+                    .eq('staff_id', staffId)
+                    .in('project_id', toRemove)
+                if (delError) throw delError
+            }
+
+            if (toAdd.length > 0) {
+                const currentUserId = await getCurrentUserId()
+                const { error: insError } = await supabase
+                    .from('project_assignments')
+                    .insert(
+                        toAdd.map(projectId => ({
+                            staff_id: staffId,
+                            project_id: projectId,
+                            assigned_by: currentUserId
+                        }))
+                    )
+                if (insError) throw insError
+            }
+
+            return { success: true }
+        } catch (error) {
+            console.error('Error updating assignments:', error)
+            return { success: false, error: error.message }
+        }
+    }
+
+    return {
+        projects,
+        loading,
+        addProject,
+        checkProjectExists,
+        refetch: fetchProjects,
+        getStaffAssignments,
+        updateStaffAssignments
+    }
 }
 
 // Hook để lấy danh sách categories
