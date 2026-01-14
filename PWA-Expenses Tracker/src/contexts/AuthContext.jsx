@@ -63,18 +63,34 @@ export const AuthProvider = ({ children }) => {
 
         // Get initial session
         const getSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession()
-            const currentUser = session?.user ?? null
-            setUser(currentUser)
+            try {
+                const { data: { session }, error } = await supabase.auth.getSession()
 
-            if (currentUser) {
-                await fetchProfile(currentUser.id)
+                if (error) {
+                    console.error('Error getting session:', error)
+                    setLoading(false)
+                    return
+                }
+
+                const currentUser = session?.user ?? null
+                setUser(currentUser)
+
+                if (currentUser) {
+                    await fetchProfile(currentUser.id)
+                }
+            } catch (err) {
+                console.error('Error in getSession:', err)
+            } finally {
+                setLoading(false)
             }
-
-            setLoading(false)
         }
 
         getSession()
+
+        // Safety timeout: nếu sau 10 giây vẫn loading, force set loading = false
+        const safetyTimeout = setTimeout(() => {
+            setLoading(false)
+        }, 10000)
 
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -91,7 +107,10 @@ export const AuthProvider = ({ children }) => {
             }
         )
 
-        return () => subscription.unsubscribe()
+        return () => {
+            subscription.unsubscribe()
+            clearTimeout(safetyTimeout)
+        }
     }, [fetchProfile])
 
     // Sign up with email
