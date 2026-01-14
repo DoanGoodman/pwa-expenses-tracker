@@ -20,6 +20,7 @@ export const AuthProvider = ({ children }) => {
 
     // Fetch user profile from profiles table
     const fetchProfile = useCallback(async (userId) => {
+        console.log('fetchProfile called with userId:', userId)
         if (!userId) {
             setProfile(null)
             setUserRole(null)
@@ -33,6 +34,8 @@ export const AuthProvider = ({ children }) => {
                 .eq('id', userId)
                 .single()
 
+            console.log('fetchProfile result:', { data, error })
+
             if (error) {
                 console.error('Error fetching profile:', error)
                 // Nếu chưa có profile, mặc định là owner
@@ -42,6 +45,7 @@ export const AuthProvider = ({ children }) => {
 
             setProfile(data)
             setUserRole(data?.role || 'owner')
+            console.log('userRole set to:', data?.role || 'owner')
         } catch (err) {
             console.error('Error in fetchProfile:', err)
             setUserRole('owner')
