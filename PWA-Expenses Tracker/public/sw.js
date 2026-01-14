@@ -1,6 +1,6 @@
 // ⚠️ QUAN TRỌNG: Thay đổi APP_VERSION mỗi khi deploy để trigger cập nhật
 // Ví dụ: 'v2', 'v3', '2024-01-14-1', etc.
-const APP_VERSION = 'v2';
+const APP_VERSION = 'v3';
 const CACHE_NAME = `gg-expenses-${APP_VERSION}`;
 const urlsToCache = [
     '/',

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { RefreshCw, X } from 'lucide-react';
 
 /**
@@ -9,19 +9,13 @@ const UpdateNotification = () => {
     const [waitingWorker, setWaitingWorker] = useState(null);
     const [showUpdate, setShowUpdate] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
+    const isUpdatingRef = useRef(false); // Dùng ref để tránh stale closure
 
     /**
      * Kiểm tra SW đang chờ và thiết lập listeners
      */
     useEffect(() => {
         if (!('serviceWorker' in navigator)) return;
-
-        const handleStateChange = (registration) => {
-            if (registration.waiting) {
-                setWaitingWorker(registration.waiting);
-                setShowUpdate(true);
-            }
-        };
 
         // Lắng nghe khi có SW mới được cài đặt
         const handleRegistration = (registration) => {
@@ -61,18 +55,21 @@ const UpdateNotification = () => {
         navigator.serviceWorker.ready.then(handleRegistration);
 
         // Lắng nghe sự kiện controllerchange để reload trang
+        // Sử dụng ref để tránh vấn đề stale closure
         const controllerChangeHandler = () => {
-            if (isUpdating) {
+            console.log('Controller changed, isUpdating:', isUpdatingRef.current);
+            if (isUpdatingRef.current) {
                 window.location.reload();
             }
         };
+
         navigator.serviceWorker.addEventListener('controllerchange', controllerChangeHandler);
 
         // Cleanup
         return () => {
             navigator.serviceWorker.removeEventListener('controllerchange', controllerChangeHandler);
         };
-    }, [isUpdating]);
+    }, []); // Không có dependency để handler được đăng ký 1 lần duy nhất
 
     /**
      * Gửi message SKIP_WAITING tới SW đang chờ
@@ -80,8 +77,22 @@ const UpdateNotification = () => {
     const handleUpdate = useCallback(() => {
         if (!waitingWorker) return;
 
+        console.log('Sending SKIP_WAITING message...');
+
+        // Update cả state và ref
         setIsUpdating(true);
+        isUpdatingRef.current = true;
+
+        // Gửi message tới SW
         waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+
+        // Fallback: Nếu controllerchange không fire sau 3 giây, force reload
+        setTimeout(() => {
+            if (isUpdatingRef.current) {
+                console.log('Fallback: Force reloading...');
+                window.location.reload();
+            }
+        }, 3000);
     }, [waitingWorker]);
 
     /**
