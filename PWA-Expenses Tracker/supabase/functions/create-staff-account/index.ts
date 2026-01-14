@@ -124,6 +124,32 @@ serve(async (req) => {
         // Tạo email ảo
         const virtualEmail = `${username}@qswings.app`;
 
+        // Kiểm tra số lượng staff hiện tại của owner (tối đa 3)
+        const { data: existingStaff, error: countError } = await supabaseAdmin
+            .from("profiles")
+            .select("id")
+            .eq("parent_id", caller.id)
+            .eq("role", "staff");
+
+        if (countError) {
+            return new Response(
+                JSON.stringify({ error: "Error checking staff count" }),
+                { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+        }
+
+        const MAX_STAFF_ACCOUNTS = 3;
+        if (existingStaff && existingStaff.length >= MAX_STAFF_ACCOUNTS) {
+            return new Response(
+                JSON.stringify({
+                    error: `Bạn chỉ có thể tạo tối đa ${MAX_STAFF_ACCOUNTS} tài khoản nhân viên`,
+                    currentCount: existingStaff.length,
+                    maxAllowed: MAX_STAFF_ACCOUNTS
+                }),
+                { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+        }
+
         // Kiểm tra username đã tồn tại chưa
         const { data: existingProfile } = await supabaseAdmin
             .from("profiles")

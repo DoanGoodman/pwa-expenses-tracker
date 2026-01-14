@@ -21,6 +21,10 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
     const [password, setPassword] = useState('')
     const [showForm, setShowForm] = useState(false)
 
+    // Giới hạn tối đa tài khoản con
+    const MAX_STAFF_ACCOUNTS = 3
+    const canCreateMore = staffList.length < MAX_STAFF_ACCOUNTS
+
     // Fetch danh sách staff
     const fetchStaffList = async () => {
         if (!user) return
@@ -150,15 +154,26 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
 
                     {/* Add Staff Button / Form */}
                     {!showForm ? (
-                        <button
-                            onClick={() => setShowForm(true)}
-                            className="w-full mb-4 p-3 border-2 border-dashed border-indigo-300 rounded-xl 
-                                     text-indigo-600 font-medium flex items-center justify-center gap-2
-                                     hover:bg-indigo-50 transition-colors"
-                        >
-                            <UserPlus className="w-5 h-5" />
-                            Thêm nhân viên mới
-                        </button>
+                        <>
+                            <button
+                                onClick={() => setShowForm(true)}
+                                disabled={!canCreateMore}
+                                className={`w-full mb-2 p-3 border-2 border-dashed rounded-xl 
+                                         font-medium flex items-center justify-center gap-2
+                                         transition-colors ${canCreateMore
+                                        ? 'border-indigo-300 text-indigo-600 hover:bg-indigo-50'
+                                        : 'border-slate-200 text-slate-400 cursor-not-allowed'
+                                    }`}
+                            >
+                                <UserPlus className="w-5 h-5" />
+                                Thêm nhân viên mới
+                            </button>
+                            <p className={`text-center text-xs mb-4 ${canCreateMore ? 'text-slate-500' : 'text-orange-500'
+                                }`}>
+                                {staffList.length}/{MAX_STAFF_ACCOUNTS} tài khoản
+                                {!canCreateMore && ' (đã đạt giới hạn)'}
+                            </p>
+                        </>
                     ) : (
                         <form onSubmit={handleCreateStaff} className="mb-4 p-4 bg-slate-50 rounded-xl">
                             <h3 className="font-medium text-slate-700 mb-3">Tạo tài khoản mới</h3>

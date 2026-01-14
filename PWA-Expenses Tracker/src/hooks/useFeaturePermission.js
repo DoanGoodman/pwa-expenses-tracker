@@ -10,7 +10,7 @@ const TELEGRAM_WORKER_URL = 'https://telegram-approval.aiqswings87.workers.dev'
  * @returns {Object} - { status, requestAccess, loading, error, refetch }
  */
 export function useFeaturePermission(featureName = 'receipt_scanner') {
-    const { user } = useAuth()
+    const { user, profile, isStaff } = useAuth()
     const [status, setStatus] = useState('loading') // 'loading' | 'none' | 'pending' | 'approved' | 'rejected'
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
@@ -34,6 +34,24 @@ export function useFeaturePermission(featureName = 'receipt_scanner') {
                 return
             }
 
+            // Nếu là staff (tài khoản con), check quyền của parent trước
+            if (isStaff && profile?.parent_id) {
+                const { data: parentPermission, error: parentError } = await supabase
+                    .from('feature_permissions')
+                    .select('status')
+                    .eq('user_id', profile.parent_id)
+                    .eq('feature_name', featureName)
+                    .single()
+
+                if (!parentError && parentPermission?.status === 'approved') {
+                    // Parent có quyền -> con cũng có quyền
+                    setStatus('approved')
+                    setLoading(false)
+                    return
+                }
+            }
+
+            // Check quyền của chính user
             const { data, error: fetchError } = await supabase
                 .from('feature_permissions')
                 .select('status')
@@ -58,7 +76,7 @@ export function useFeaturePermission(featureName = 'receipt_scanner') {
         } finally {
             setLoading(false)
         }
-    }, [featureName, user])
+    }, [featureName, user, profile, isStaff])
 
     // Request access to feature
     const requestAccess = useCallback(async () => {

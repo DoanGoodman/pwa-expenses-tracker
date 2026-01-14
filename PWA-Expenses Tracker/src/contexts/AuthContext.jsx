@@ -208,26 +208,27 @@ export const AuthProvider = ({ children }) => {
         return { success: true, data }
     }
 
-    // Sign out
+    // Sign out - optimized for faster UI response
     const signOut = async () => {
-        // Clear cached user ID
+        // Clear cached user ID ngay lập tức
         clearUserIdCache()
 
-        if (isDemoMode()) {
-            localStorage.removeItem('demo_user')
-            setUser(null)
-            setProfile(null)
-            setUserRole(null)
-            return { success: true }
-        }
-
-        const { error } = await supabase.auth.signOut()
-        if (error) {
-            return { success: false, error: error.message }
-        }
+        // Clear state ngay lập tức để UI phản hồi nhanh
         setUser(null)
         setProfile(null)
         setUserRole(null)
+
+        if (isDemoMode()) {
+            localStorage.removeItem('demo_user')
+            return { success: true }
+        }
+
+        // Gọi API sau (không block UI)
+        try {
+            await supabase.auth.signOut()
+        } catch (error) {
+            console.error('Error signing out:', error)
+        }
         return { success: true }
     }
 
