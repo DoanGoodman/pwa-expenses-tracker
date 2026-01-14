@@ -54,6 +54,25 @@ const UpdateNotification = () => {
         // Lấy registration hiện tại
         navigator.serviceWorker.ready.then(handleRegistration);
 
+        // 🆕 Auto-check update khi app khởi động (quan trọng cho PWA standalone)
+        const checkForUpdates = async () => {
+            try {
+                const registration = await navigator.serviceWorker.getRegistration();
+                if (registration) {
+                    await registration.update();
+                    console.log('SW update check completed');
+                }
+            } catch (err) {
+                console.log('SW update check failed:', err);
+            }
+        };
+
+        // Check ngay khi mount
+        checkForUpdates();
+
+        // Check định kỳ mỗi 5 phút (cho PWA standalone luôn mở)
+        const intervalId = setInterval(checkForUpdates, 5 * 60 * 1000);
+
         // Lắng nghe sự kiện controllerchange để reload trang
         // Sử dụng ref để tránh vấn đề stale closure
         const controllerChangeHandler = () => {
@@ -67,6 +86,7 @@ const UpdateNotification = () => {
 
         // Cleanup
         return () => {
+            clearInterval(intervalId);
             navigator.serviceWorker.removeEventListener('controllerchange', controllerChangeHandler);
         };
     }, []); // Không có dependency để handler được đăng ký 1 lần duy nhất
