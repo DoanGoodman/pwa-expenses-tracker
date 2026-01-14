@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { Mail, Lock, Eye, EyeOff, Loader2, CheckCircle, User, Users } from 'lucide-react'
 import ForgotPasswordBottomSheet from '../components/auth/ForgotPasswordBottomSheet'
@@ -152,8 +153,8 @@ const Login = () => {
                                 type="button"
                                 onClick={() => { setIsStaffLogin(false); setError(''); }}
                                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${!isStaffLogin
-                                        ? 'bg-white text-primary shadow-sm'
-                                        : 'text-slate-500 hover:text-slate-700'
+                                    ? 'bg-white text-primary shadow-sm'
+                                    : 'text-slate-500 hover:text-slate-700'
                                     }`}
                             >
                                 <User size={16} />
@@ -163,8 +164,8 @@ const Login = () => {
                                 type="button"
                                 onClick={() => { setIsStaffLogin(true); setError(''); }}
                                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${isStaffLogin
-                                        ? 'bg-white text-primary shadow-sm'
-                                        : 'text-slate-500 hover:text-slate-700'
+                                    ? 'bg-white text-primary shadow-sm'
+                                    : 'text-slate-500 hover:text-slate-700'
                                     }`}
                             >
                                 <Users size={16} />

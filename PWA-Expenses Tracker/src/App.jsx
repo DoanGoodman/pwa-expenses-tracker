@@ -1,4 +1,5 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { useEffect } from 'react'
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import BottomNav from './components/layout/BottomNav'
 import UpdateNotification from './components/common/UpdateNotification'
@@ -26,7 +27,29 @@ const OwnerRoute = ({ children }) => {
 
 // Protected App Content
 const AppContent = () => {
-  const { isAuthenticated, loading, isStaff } = useAuth()
+  const { isAuthenticated, loading, isStaff, isOwner } = useAuth()
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  // Redirect về trang mặc định dựa trên role khi đăng nhập
+  useEffect(() => {
+    if (!loading && isAuthenticated) {
+      const currentPath = location.pathname
+
+      // Owner: redirect về / nếu đang ở trang không phù hợp
+      if (isOwner && currentPath !== '/' && currentPath !== '/documents' && currentPath !== '/recycle-bin') {
+        // Nếu owner đang ở /expenses hoặc /add, redirect về trang chủ
+        if (currentPath === '/expenses' || currentPath === '/add') {
+          navigate('/', { replace: true })
+        }
+      }
+
+      // Staff: redirect về /expenses nếu đang ở trang owner-only
+      if (isStaff && (currentPath === '/' || currentPath === '/documents' || currentPath === '/recycle-bin')) {
+        navigate('/expenses', { replace: true })
+      }
+    }
+  }, [loading, isAuthenticated, isOwner, isStaff, location.pathname, navigate])
 
   if (loading) {
     return (
