@@ -14,9 +14,42 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null)
-    const [profile, setProfile] = useState(null)
-    const [userRole, setUserRole] = useState(null) // 'owner' | 'staff' | null
+    const [profile, setProfile] = useState(() => {
+        // Load cached profile từ localStorage
+        try {
+            const cached = localStorage.getItem('cached_profile')
+            return cached ? JSON.parse(cached) : null
+        } catch {
+            return null
+        }
+    })
+    const [userRole, setUserRole] = useState(() => {
+        // Load cached role từ localStorage
+        try {
+            return localStorage.getItem('cached_user_role') || null
+        } catch {
+            return null
+        }
+    })
     const [loading, setLoading] = useState(true)
+
+    // Helper: Save profile to cache
+    const cacheProfile = (profileData, role) => {
+        try {
+            if (profileData) {
+                localStorage.setItem('cached_profile', JSON.stringify(profileData))
+            } else {
+                localStorage.removeItem('cached_profile')
+            }
+            if (role) {
+                localStorage.setItem('cached_user_role', role)
+            } else {
+                localStorage.removeItem('cached_user_role')
+            }
+        } catch (e) {
+            console.error('Error caching profile:', e)
+        }
+    }
 
     // Fetch user profile using RPC function (bypass RLS for faster fetch)
     const fetchProfile = useCallback(async (userId, retryCount = 0) => {
@@ -54,6 +87,7 @@ export const AuthProvider = ({ children }) => {
                     if (!fallbackError && fallbackData) {
                         setProfile(fallbackData)
                         setUserRole(fallbackData?.role || 'owner')
+                        cacheProfile(fallbackData, fallbackData?.role || 'owner')
                         return
                     }
                 }
@@ -64,6 +98,7 @@ export const AuthProvider = ({ children }) => {
 
             setProfile(data)
             setUserRole(data?.role || 'owner')
+            cacheProfile(data, data?.role || 'owner')
             console.log('userRole set to:', data?.role || 'owner')
         } catch (err) {
             console.error('Error in fetchProfile:', err)
@@ -114,9 +149,22 @@ export const AuthProvider = ({ children }) => {
                 }
 
                 if (currentUser) {
-                    // Delay 1 giây để đợi session token được verify với RLS
-                    await new Promise(resolve => setTimeout(resolve, 1000))
-                    await fetchProfile(currentUser.id)
+                    // Kiểm tra cache có hợp lệ không
+                    const cachedProfile = profile
+                    const hasCachedProfile = cachedProfile && cachedProfile.id === currentUser.id
+
+                    if (hasCachedProfile && userRole) {
+                        // Cache hợp lệ - set loading false ngay lập tức
+                        console.log('Using cached profile, role:', userRole)
+                        setLoading(false)
+                        // Verify lại profile sau (không block UI)
+                        fetchProfile(currentUser.id).catch(console.error)
+                    } else {
+                        // Không có cache - phải fetch và đợi
+                        // Delay 1 giây để đợi session token được verify với RLS
+                        await new Promise(resolve => setTimeout(resolve, 1000))
+                        await fetchProfile(currentUser.id)
+                    }
                 }
             } catch (err) {
                 console.error('Error in getSession:', err)
@@ -213,10 +261,11 @@ export const AuthProvider = ({ children }) => {
         // Clear cached user ID ngay lập tức
         clearUserIdCache()
 
-        // Clear state ngay lập tức để UI phản hồi nhanh
+        // Clear state và cache ngay lập tức để UI phản hồi nhanh
         setUser(null)
         setProfile(null)
         setUserRole(null)
+        cacheProfile(null, null)
 
         if (isDemoMode()) {
             localStorage.removeItem('demo_user')
