@@ -68,7 +68,7 @@ export const useProjects = () => {
             const { data, error } = await supabase
                 .from('projects')
                 .select('*')
-                .eq('user_id', userId)
+                // RLS determines visibility (Own + Parent's)
                 .order('name')
 
             if (error) throw error
@@ -139,7 +139,7 @@ export const useProjects = () => {
             const { data, error } = await supabase
                 .from('projects')
                 .select('name')
-                .eq('user_id', userId)
+                // RLS Check: user sees own and parent's projects
                 .ilike('name', trimmedName)
 
             if (error) throw error
@@ -308,8 +308,9 @@ export const useExpenses = (filters = {}) => {
 
             if (expensesData) {
                 // 2. Fetch Projects and Categories for manual join
+                // RLS handles visibility for projects
                 const [projectsResponse, categoriesResponse] = await Promise.all([
-                    supabase.from('projects').select('id, name').eq('user_id', userId),
+                    supabase.from('projects').select('id, name'),
                     supabase.from('categories').select('id, name')
                 ])
 
