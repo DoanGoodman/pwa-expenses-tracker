@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { supabase, isDemoMode } from '../lib/supabase'
+import { clearUserIdCache } from '../hooks/useSupabase'
 
 const AuthContext = createContext({})
 
@@ -163,9 +164,14 @@ export const AuthProvider = ({ children }) => {
 
     // Sign out
     const signOut = async () => {
+        // Clear cached user ID
+        clearUserIdCache()
+
         if (isDemoMode()) {
             localStorage.removeItem('demo_user')
             setUser(null)
+            setProfile(null)
+            setUserRole(null)
             return { success: true }
         }
 
@@ -174,6 +180,8 @@ export const AuthProvider = ({ children }) => {
             return { success: false, error: error.message }
         }
         setUser(null)
+        setProfile(null)
+        setUserRole(null)
         return { success: true }
     }
 

@@ -1,10 +1,34 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase, demoData, isDemoMode } from '../lib/supabase'
 
-// Helper function to get current user ID
+// Cache userId để tránh gọi Supabase nhiều lần
+let cachedUserId = null
+
+// Helper function to get current user ID với cache và timeout
 const getCurrentUserId = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    return user?.id || null
+    // Return cached value nếu có
+    if (cachedUserId) return cachedUserId
+
+    try {
+        // Thêm timeout 3 giây
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Auth timeout')), 3000)
+        )
+
+        const authPromise = supabase.auth.getUser()
+
+        const { data: { user } } = await Promise.race([authPromise, timeoutPromise])
+        cachedUserId = user?.id || null
+        return cachedUserId
+    } catch (error) {
+        console.error('Error getting user ID:', error)
+        return null
+    }
+}
+
+// Function để clear cache khi logout
+export const clearUserIdCache = () => {
+    cachedUserId = null
 }
 
 // Helper function to get the last day of a month
