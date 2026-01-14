@@ -333,11 +333,11 @@ export const useExpenses = (filters = {}) => {
                 return
             }
 
-            // 1. Build query with user_id filter (exclude soft-deleted items)
+            // 1. Build query - RELY ON RLS, DO NOT FILTER BY USER_ID MANUALLY
             let query = supabase
                 .from('expenses')
                 .select('*')
-                .eq('user_id', userId)
+                // .eq('user_id', userId) <--- REMOVED: Let RLS handle this
                 .is('deleted_at', null)
                 .order(sortColumn, { ascending })
 
@@ -643,7 +643,7 @@ export const useDashboardStats = (startMonth, endMonth, projectId = null) => {
                 let query = supabase
                     .from('expenses')
                     .select('*')
-                    .eq('user_id', userId)
+                    // .eq('user_id', userId) <--- REMOVED: Let RLS handle this
                     .is('deleted_at', null)
 
                 if (startMonth && endMonth) {
