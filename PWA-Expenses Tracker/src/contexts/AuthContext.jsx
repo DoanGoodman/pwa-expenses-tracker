@@ -28,11 +28,18 @@ export const AuthProvider = ({ children }) => {
         }
 
         try {
-            const { data, error } = await supabase
+            // Thêm timeout 5 giây để tránh hang
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
+            )
+
+            const queryPromise = supabase
                 .from('profiles')
                 .select('*')
                 .eq('id', userId)
                 .single()
+
+            const { data, error } = await Promise.race([queryPromise, timeoutPromise])
 
             console.log('fetchProfile result:', { data, error })
 
@@ -48,6 +55,7 @@ export const AuthProvider = ({ children }) => {
             console.log('userRole set to:', data?.role || 'owner')
         } catch (err) {
             console.error('Error in fetchProfile:', err)
+            // Timeout hoặc lỗi khác, mặc định là owner
             setUserRole('owner')
         }
     }, [])
