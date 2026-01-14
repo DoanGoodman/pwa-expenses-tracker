@@ -1,14 +1,22 @@
 import { NavLink } from 'react-router-dom'
 import { LayoutDashboard, List, PlusCircle } from 'lucide-react'
+import { useAuth } from '../../contexts/AuthContext'
 
-const navItems = [
-    { path: '/', icon: LayoutDashboard, label: 'Tổng quan', useIcon: true },
-    { path: '/expenses', icon: List, label: 'Chi phí', useIcon: true },
-    { path: '/add', icon: PlusCircle, label: 'Thêm mới', useIcon: true },
-    { path: '/documents', icon: null, label: 'qswings', emoji: '🤖', useIcon: false },
+const allNavItems = [
+    { path: '/', icon: LayoutDashboard, label: 'Tổng quan', useIcon: true, ownerOnly: true },
+    { path: '/expenses', icon: List, label: 'Chi phí', useIcon: true, ownerOnly: false },
+    { path: '/add', icon: PlusCircle, label: 'Thêm mới', useIcon: true, ownerOnly: false },
+    { path: '/documents', icon: null, label: 'qswings', emoji: '🤖', useIcon: false, ownerOnly: true },
 ]
 
 const BottomNav = () => {
+    const { isStaff } = useAuth()
+
+    // Lọc các tab dựa trên role
+    const navItems = isStaff
+        ? allNavItems.filter(item => !item.ownerOnly)
+        : allNavItems
+
     return (
         <nav className="bottom-nav">
             <div className="flex justify-around items-center max-w-md mx-auto">

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { supabase, isDemoMode } from '../lib/supabase'
 
 const AuthContext = createContext({})
@@ -13,7 +13,39 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null)
+    const [profile, setProfile] = useState(null)
+    const [userRole, setUserRole] = useState(null) // 'owner' | 'staff' | null
     const [loading, setLoading] = useState(true)
+
+    // Fetch user profile from profiles table
+    const fetchProfile = useCallback(async (userId) => {
+        if (!userId) {
+            setProfile(null)
+            setUserRole(null)
+            return
+        }
+
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', userId)
+                .single()
+
+            if (error) {
+                console.error('Error fetching profile:', error)
+                // Nếu chưa có profile, mặc định là owner
+                setUserRole('owner')
+                return
+            }
+
+            setProfile(data)
+            setUserRole(data?.role || 'owner')
+        } catch (err) {
+            console.error('Error in fetchProfile:', err)
+            setUserRole('owner')
+        }
+    }, [])
 
     useEffect(() => {
         // Check for demo mode
@@ -21,7 +53,9 @@ export const AuthProvider = ({ children }) => {
             // Check localStorage for demo user
             const demoUser = localStorage.getItem('demo_user')
             if (demoUser) {
-                setUser(JSON.parse(demoUser))
+                const parsedUser = JSON.parse(demoUser)
+                setUser(parsedUser)
+                setUserRole('owner') // Demo user is always owner
             }
             setLoading(false)
             return
@@ -30,7 +64,13 @@ export const AuthProvider = ({ children }) => {
         // Get initial session
         const getSession = async () => {
             const { data: { session } } = await supabase.auth.getSession()
-            setUser(session?.user ?? null)
+            const currentUser = session?.user ?? null
+            setUser(currentUser)
+
+            if (currentUser) {
+                await fetchProfile(currentUser.id)
+            }
+
             setLoading(false)
         }
 
@@ -38,13 +78,21 @@ export const AuthProvider = ({ children }) => {
 
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            (_event, session) => {
-                setUser(session?.user ?? null)
+            async (_event, session) => {
+                const currentUser = session?.user ?? null
+                setUser(currentUser)
+
+                if (currentUser) {
+                    await fetchProfile(currentUser.id)
+                } else {
+                    setProfile(null)
+                    setUserRole(null)
+                }
             }
         )
 
         return () => subscription.unsubscribe()
-    }, [])
+    }, [fetchProfile])
 
     // Sign up with email
     const signUp = async (email, password) => {
@@ -173,6 +221,8 @@ export const AuthProvider = ({ children }) => {
 
     const value = {
         user,
+        profile,
+        userRole,
         loading,
         signUp,
         signIn,
@@ -180,7 +230,10 @@ export const AuthProvider = ({ children }) => {
         signInWithGoogle,
         resetPasswordForEmail,
         updatePassword,
-        isAuthenticated: !!user
+        isAuthenticated: !!user,
+        isOwner: userRole === 'owner',
+        isStaff: userRole === 'staff',
+        refetchProfile: () => fetchProfile(user?.id),
     }
 
     return (
