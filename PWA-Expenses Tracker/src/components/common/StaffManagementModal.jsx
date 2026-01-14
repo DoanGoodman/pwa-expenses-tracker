@@ -60,8 +60,8 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
         setCreating(true)
 
         try {
-            // Gọi Edge Function
-            const { data, error } = await supabase.functions.invoke('create-staff-account', {
+            // Gọi Edge Function (URL thực tế là 'quick-task')
+            const { data, error } = await supabase.functions.invoke('quick-task', {
                 body: { username, password }
             })
 
