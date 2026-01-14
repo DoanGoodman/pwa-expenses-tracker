@@ -4,21 +4,22 @@ import { supabase, demoData, isDemoMode } from '../lib/supabase'
 // Cache userId để tránh gọi Supabase nhiều lần
 let cachedUserId = null
 
-// Helper function to get current user ID với cache và timeout
+// Helper function to get current user ID với cache
+// Sử dụng getSession() thay vì getUser() vì nhanh hơn
 const getCurrentUserId = async () => {
     // Return cached value nếu có
     if (cachedUserId) return cachedUserId
 
     try {
-        // Thêm timeout 3 giây
-        const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Auth timeout')), 3000)
-        )
+        // Sử dụng getSession() - nhanh hơn getUser() vì không verify với server
+        const { data: { session }, error } = await supabase.auth.getSession()
 
-        const authPromise = supabase.auth.getUser()
+        if (error) {
+            console.error('Error getting session:', error)
+            return null
+        }
 
-        const { data: { user } } = await Promise.race([authPromise, timeoutPromise])
-        cachedUserId = user?.id || null
+        cachedUserId = session?.user?.id || null
         return cachedUserId
     } catch (error) {
         console.error('Error getting user ID:', error)
@@ -29,6 +30,11 @@ const getCurrentUserId = async () => {
 // Function để clear cache khi logout
 export const clearUserIdCache = () => {
     cachedUserId = null
+}
+
+// Function để set cache từ bên ngoài (ví dụ từ AuthContext)
+export const setUserIdCache = (userId) => {
+    cachedUserId = userId
 }
 
 // Helper function to get the last day of a month

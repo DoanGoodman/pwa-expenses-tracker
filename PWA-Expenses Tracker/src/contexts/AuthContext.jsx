@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { supabase, isDemoMode } from '../lib/supabase'
-import { clearUserIdCache } from '../hooks/useSupabase'
+import { clearUserIdCache, setUserIdCache } from '../hooks/useSupabase'
 
 const AuthContext = createContext({})
 
@@ -76,6 +76,11 @@ export const AuthProvider = ({ children }) => {
                 const currentUser = session?.user ?? null
                 setUser(currentUser)
 
+                // Set cache cho hooks sử dụng
+                if (currentUser?.id) {
+                    setUserIdCache(currentUser.id)
+                }
+
                 if (currentUser) {
                     await fetchProfile(currentUser.id)
                 }
@@ -98,6 +103,13 @@ export const AuthProvider = ({ children }) => {
             async (_event, session) => {
                 const currentUser = session?.user ?? null
                 setUser(currentUser)
+
+                // Update cache
+                if (currentUser?.id) {
+                    setUserIdCache(currentUser.id)
+                } else {
+                    clearUserIdCache()
+                }
 
                 if (currentUser) {
                     await fetchProfile(currentUser.id)
