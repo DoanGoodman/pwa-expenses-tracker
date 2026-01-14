@@ -18,7 +18,7 @@ export const AuthProvider = ({ children }) => {
     const [userRole, setUserRole] = useState(null) // 'owner' | 'staff' | null
     const [loading, setLoading] = useState(true)
 
-    // Fetch user profile from profiles table với retry
+    // Fetch user profile using RPC function (bypass RLS for faster fetch)
     const fetchProfile = useCallback(async (userId, retryCount = 0) => {
         console.log('fetchProfile called with userId:', userId, 'retry:', retryCount)
         if (!userId) {
@@ -28,16 +28,13 @@ export const AuthProvider = ({ children }) => {
         }
 
         try {
-            // Timeout 2 giây cho mỗi attempt (giảm từ 5s)
+            // Timeout 2 giây cho mỗi attempt
             const timeoutPromise = new Promise((_, reject) =>
                 setTimeout(() => reject(new Error('Profile fetch timeout')), 2000)
             )
 
-            const queryPromise = supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', userId)
-                .single()
+            // Sử dụng RPC function thay vì query trực tiếp (bypass RLS)
+            const queryPromise = supabase.rpc('get_my_profile', { user_id: userId }).single()
 
             const { data, error } = await Promise.race([queryPromise, timeoutPromise])
 
@@ -45,6 +42,21 @@ export const AuthProvider = ({ children }) => {
 
             if (error) {
                 console.error('Error fetching profile:', error)
+                // Fallback: thử query trực tiếp nếu RPC không tồn tại
+                if (error.code === 'PGRST202') {
+                    console.log('RPC not found, falling back to direct query')
+                    const { data: fallbackData, error: fallbackError } = await supabase
+                        .from('profiles')
+                        .select('*')
+                        .eq('id', userId)
+                        .single()
+
+                    if (!fallbackError && fallbackData) {
+                        setProfile(fallbackData)
+                        setUserRole(fallbackData?.role || 'owner')
+                        return
+                    }
+                }
                 // Nếu chưa có profile, mặc định là owner
                 setUserRole('owner')
                 return
