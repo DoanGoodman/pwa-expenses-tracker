@@ -102,8 +102,8 @@ export const AuthProvider = ({ children }) => {
                 }
 
                 if (currentUser) {
-                    // Delay 300ms để đợi session token được verify
-                    await new Promise(resolve => setTimeout(resolve, 300))
+                    // Delay 1 giây để đợi session token được verify với RLS
+                    await new Promise(resolve => setTimeout(resolve, 1000))
                     await fetchProfile(currentUser.id)
                 }
             } catch (err) {
