@@ -431,10 +431,16 @@ export const useAddExpense = () => {
             }
 
             // Map form data to database columns
+            // Ensure date is in ISO format for timestamptz column
+            let dateValue = expenseData.expense_date || expenseData.date || new Date().toISOString()
+            if (dateValue && !dateValue.includes('T')) {
+                dateValue = `${dateValue}T00:00:00`
+            }
+
             const insertData = {
-                date: expenseData.expense_date || expenseData.date || new Date().toISOString(),
-                project_id: parseInt(expenseData.project_id),
-                category_id: parseInt(expenseData.category_id),
+                date: dateValue,
+                project_id: Number(expenseData.project_id),
+                category_id: Number(expenseData.category_id),
                 amount: expenseData.amount || 0,
                 description: expenseData.description || '',
                 quantity: expenseData.quantity || 1,
@@ -754,11 +760,22 @@ export const useBulkInsertExpenses = () => {
                 throw new Error('Bạn cần đăng nhập để lưu chi phí')
             }
 
-            // Add user_id to each expense
-            const dataWithUserId = expensesArray.map(expense => ({
-                ...expense,
-                user_id: userId
-            }))
+            // Add user_id to each expense and ensure proper data types
+            const dataWithUserId = expensesArray.map(expense => {
+                // Ensure date is in ISO format for timestamptz column
+                let dateValue = expense.date || new Date().toISOString()
+                if (dateValue && !dateValue.includes('T')) {
+                    dateValue = `${dateValue}T00:00:00`
+                }
+
+                return {
+                    ...expense,
+                    date: dateValue,
+                    project_id: Number(expense.project_id),
+                    category_id: Number(expense.category_id),
+                    user_id: userId
+                }
+            })
 
             const { data, error } = await supabase
                 .from('expenses')
