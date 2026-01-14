@@ -34,8 +34,25 @@ serve(async (req) => {
         });
 
         // Tạo client thông thường để verify người gọi
-        const authHeader = req.headers.get("Authorization")!;
-        const supabaseClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+        const authHeader = req.headers.get("Authorization");
+
+        // Kiểm tra authHeader
+        if (!authHeader) {
+            return new Response(
+                JSON.stringify({ error: "Missing Authorization header" }),
+                { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+        }
+
+        const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+        if (!anonKey) {
+            return new Response(
+                JSON.stringify({ error: "Server configuration error: Missing ANON_KEY" }),
+                { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+        }
+
+        const supabaseClient = createClient(supabaseUrl, anonKey, {
             global: { headers: { Authorization: authHeader } },
         });
 
@@ -47,7 +64,11 @@ serve(async (req) => {
 
         if (userError || !caller) {
             return new Response(
-                JSON.stringify({ error: "Unauthorized" }),
+                JSON.stringify({
+                    error: "Unauthorized",
+                    details: userError?.message || "User not found",
+                    hasAuthHeader: !!authHeader
+                }),
                 { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
             );
         }
@@ -136,22 +157,21 @@ serve(async (req) => {
             );
         }
 
-        // Thêm thông tin vào bảng profiles
-        const { error: insertError } = await supabaseAdmin
+        // Cập nhật thông tin profile (trigger handle_new_user đã tạo sẵn)
+        const { error: updateError } = await supabaseAdmin
             .from("profiles")
-            .insert({
-                id: newUser.user.id,
+            .update({
                 username: username,
-                email: virtualEmail,
                 role: "staff",
                 parent_id: caller.id, // Liên kết với owner tạo ra
-            });
+            })
+            .eq("id", newUser.user.id);
 
-        if (insertError) {
-            // Rollback: xóa user nếu không thể tạo profile
+        if (updateError) {
+            // Rollback: xóa user nếu không thể update profile
             await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
             return new Response(
-                JSON.stringify({ error: "Failed to create profile: " + insertError.message }),
+                JSON.stringify({ error: "Failed to update profile: " + updateError.message }),
                 { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
             );
         }

@@ -76,7 +76,9 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
             setUsername('')
             setPassword('')
             setShowForm(false)
-            fetchStaffList()
+            // Đợi một chút để database sync xong trước khi fetch
+            await new Promise(resolve => setTimeout(resolve, 500))
+            await fetchStaffList()
         } catch (err) {
             console.error('Error creating staff:', err)
             setError(err.message || 'Không thể tạo tài khoản. Vui lòng thử lại.')
