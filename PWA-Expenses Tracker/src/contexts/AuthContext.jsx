@@ -28,9 +28,9 @@ export const AuthProvider = ({ children }) => {
         }
 
         try {
-            // Timeout 5 giây cho mỗi attempt
+            // Timeout 2 giây cho mỗi attempt (giảm từ 5s)
             const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
+                setTimeout(() => reject(new Error('Profile fetch timeout')), 2000)
             )
 
             const queryPromise = supabase
@@ -56,10 +56,10 @@ export const AuthProvider = ({ children }) => {
         } catch (err) {
             console.error('Error in fetchProfile:', err)
 
-            // Retry 1 lần sau 1 giây nếu timeout
-            if (retryCount < 1 && err.message === 'Profile fetch timeout') {
-                console.log('Retrying fetchProfile after delay...')
-                await new Promise(resolve => setTimeout(resolve, 1000))
+            // Retry 2 lần sau 500ms nếu timeout
+            if (retryCount < 2 && err.message === 'Profile fetch timeout') {
+                console.log('Retrying fetchProfile after delay... attempt', retryCount + 1)
+                await new Promise(resolve => setTimeout(resolve, 500))
                 return fetchProfile(userId, retryCount + 1)
             }
 
@@ -102,6 +102,8 @@ export const AuthProvider = ({ children }) => {
                 }
 
                 if (currentUser) {
+                    // Delay 300ms để đợi session token được verify
+                    await new Promise(resolve => setTimeout(resolve, 300))
                     await fetchProfile(currentUser.id)
                 }
             } catch (err) {
