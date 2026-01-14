@@ -1,29 +1,55 @@
 import { useState, useEffect } from 'react'
 import { X, CheckSquare, Square, Briefcase, Loader2, Save } from 'lucide-react'
-import { useProjects } from '../../hooks/useSupabase'
+import { supabase } from '../../lib/supabase'
 
 /**
  * Modal để phân quyền dự án cho nhân viên
+ * Optimized: Fetch trực tiếp, không qua hook global để tránh re-render và logic thừa
  */
 const ProjectAssignmentModal = ({ isOpen, onClose, staff, onSaved }) => {
-    const { projects, getStaffAssignments, updateStaffAssignments } = useProjects()
+    const [projects, setProjects] = useState([])
     const [assignedInfo, setAssignedInfo] = useState([]) // Array of assigned project IDs
     const [loading, setLoading] = useState(false)
     const [saving, setSaving] = useState(false)
 
-    // Load assignments khi modal mở
+    // Load projects và assignments
     useEffect(() => {
-        if (isOpen && staff) {
-            const loadAssignments = async () => {
-                setLoading(true)
-                const assignedIds = await getStaffAssignments(staff.id)
-                setAssignedInfo(assignedIds)
+        if (!isOpen || !staff) return
+
+        const loadData = async () => {
+            setLoading(true)
+            try {
+                // 1. Fetch tất cả projects của Owner (người đang login)
+                // Không cần check staff logic ở đây vì người mở modal là Owner
+                const { data: projectsData, error: projError } = await supabase
+                    .from('projects')
+                    .select('id, name')
+                    .order('name')
+
+                if (projError) throw projError
+
+                // 2. Fetch assignments hiện tại của staff này
+                const { data: assignData, error: assignError } = await supabase
+                    .from('project_assignments')
+                    .select('project_id')
+                    .eq('staff_id', staff.id)
+
+                if (assignError) throw assignError
+
+                setProjects(projectsData || [])
+                setAssignedInfo(assignData?.map(a => a.project_id) || [])
+            } catch (err) {
+                console.error('Error loading assignment data:', err)
+                // alert('Không thể tải dữ liệu dự án')
+            } finally {
                 setLoading(false)
             }
-            loadAssignments()
         }
-    }, [isOpen, staff, getStaffAssignments])
 
+        loadData()
+    }, [isOpen, staff])
+
+    // Logic Assignments
     const toggleProject = (projectId) => {
         setAssignedInfo(prev => {
             if (prev.includes(projectId)) {
@@ -35,15 +61,55 @@ const ProjectAssignmentModal = ({ isOpen, onClose, staff, onSaved }) => {
     }
 
     const handleSave = async () => {
+        if (!staff) return
         setSaving(true)
-        const result = await updateStaffAssignments(staff.id, assignedInfo)
-        setSaving(false)
+        try {
+            // 1. Get current assigned
+            const { data: current, error: fetchErr } = await supabase
+                .from('project_assignments')
+                .select('project_id')
+                .eq('staff_id', staff.id)
 
-        if (result.success) {
+            if (fetchErr) throw fetchErr
+
+            const currentIds = current.map(c => c.project_id)
+            // Ensure IDs are comparing same type (number vs number)
+            const newIds = assignedInfo
+
+            // 2. Calculate diff
+            const toAdd = newIds.filter(id => !currentIds.includes(id))
+            const toRemove = currentIds.filter(id => !newIds.includes(id))
+
+            const { data: { user } } = await supabase.auth.getUser()
+
+            // 3. Update DB
+            if (toRemove.length > 0) {
+                await supabase
+                    .from('project_assignments')
+                    .delete()
+                    .eq('staff_id', staff.id)
+                    .in('project_id', toRemove)
+            }
+
+            if (toAdd.length > 0) {
+                await supabase
+                    .from('project_assignments')
+                    .insert(
+                        toAdd.map(pid => ({
+                            staff_id: staff.id,
+                            project_id: pid,
+                            assigned_by: user.id
+                        }))
+                    )
+            }
+
             onSaved && onSaved(`Đã cập nhật quyền dự án cho ${staff.username}`)
             onClose()
-        } else {
-            alert('Lỗi cập nhật: ' + result.error)
+        } catch (error) {
+            console.error('Error saving assignments:', error)
+            alert('Lỗi cập nhật: ' + error.message)
+        } finally {
+            setSaving(false)
         }
     }
 
