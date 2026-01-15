@@ -5,6 +5,35 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
+// Global visibility change handler: Refresh session khi tab trở lại visible
+// Điều này giúp "unstick" các pending requests bị treo khi tab hidden
+if (typeof document !== 'undefined') {
+    let lastVisibilityCheck = Date.now()
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            const now = Date.now()
+            const hiddenDuration = now - lastVisibilityCheck
+
+            // Nếu tab hidden quá 5 giây, refresh session để unstick connection
+            if (hiddenDuration > 5000) {
+                console.log('[Supabase] Tab visible after', Math.round(hiddenDuration / 1000), 's - refreshing session')
+                supabase.auth.getSession().then(({ data }) => {
+                    if (data.session) {
+                        console.log('[Supabase] Session refreshed successfully')
+                    }
+                }).catch(err => {
+                    console.warn('[Supabase] Session refresh failed:', err)
+                })
+            }
+
+            lastVisibilityCheck = now
+        } else {
+            lastVisibilityCheck = Date.now()
+        }
+    })
+}
+
 // Demo data for development
 export const demoData = {
     projects: [
