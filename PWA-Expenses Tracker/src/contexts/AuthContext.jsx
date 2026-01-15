@@ -106,8 +106,17 @@ export const AuthProvider = ({ children }) => {
                 return
             }
 
-            // For Staff: Check if parent (owner) is also active
-            if (data?.role === 'staff' && data?.parent_id) {
+            // For Staff: Check if they still have a parent (not deleted)
+            if (data?.role === 'staff') {
+                // Staff without parent_id means they've been removed by owner
+                if (!data?.parent_id) {
+                    console.warn('Staff account has no parent, logging out...')
+                    alert('Tài khoản của bạn đã bị xóa khỏi hệ thống. Vui lòng liên hệ quản trị viên.')
+                    await supabase.auth.signOut()
+                    return
+                }
+
+                // Check if parent (owner) is also active
                 const { data: parentData, error: parentError } = await supabase
                     .from('profiles')
                     .select('is_active')

@@ -97,26 +97,35 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
 
     // Xóa (vô hiệu hóa) tài khoản staff
     const handleDeleteStaff = async (staffId, staffUsername) => {
-        if (!confirm(`Bạn có chắc muốn vô hiệu hóa tài khoản "${staffUsername}"? Nhân viên này sẽ không thể đăng nhập được nữa.`)) return
+        if (!confirm(`Bạn có chắc muốn xóa tài khoản "${staffUsername}"? Nhân viên này sẽ không thể đăng nhập được nữa.`)) return
 
         setDeleting(staffId)
         try {
-            // Vô hiệu hóa tài khoản bằng cách set is_active = false
-            const { error } = await supabase
+            // Bước 1: Hủy liên kết với owner (luôn hoạt động)
+            const { error: unlinkError } = await supabase
                 .from('profiles')
-                .update({
-                    is_active: false,
-                    parent_id: null // Cũng hủy liên kết với owner
-                })
+                .update({ parent_id: null })
                 .eq('id', staffId)
 
-            if (error) throw error
+            if (unlinkError) throw unlinkError
 
-            setSuccess(`Đã vô hiệu hóa tài khoản "${staffUsername}"`)
-            fetchStaffList()
+            // Bước 2: Thử set is_active = false (có thể thất bại nếu cột chưa tồn tại)
+            try {
+                await supabase
+                    .from('profiles')
+                    .update({ is_active: false })
+                    .eq('id', staffId)
+            } catch (e) {
+                // Ignore - cột có thể chưa tồn tại
+                console.warn('is_active column may not exist:', e)
+            }
+
+            // Cập nhật UI ngay lập tức (không cần đợi fetch)
+            setStaffList(prev => prev.filter(s => s.id !== staffId))
+            setSuccess(`Đã xóa tài khoản "${staffUsername}"`)
         } catch (err) {
-            console.error('Error disabling staff:', err)
-            setError('Không thể vô hiệu hóa tài khoản. Vui lòng thử lại.')
+            console.error('Error deleting staff:', err)
+            setError('Không thể xóa tài khoản. Vui lòng thử lại.')
         } finally {
             setDeleting(null)
         }
