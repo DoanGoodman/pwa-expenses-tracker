@@ -68,8 +68,8 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
         setCreating(true)
 
         try {
-            // Gọi Edge Function để tạo staff account
-            const { data, error } = await supabase.functions.invoke('create-staff-account', {
+            // Gọi Edge Function để tạo staff account (endpoint là 'quick-task')
+            const { data, error } = await supabase.functions.invoke('quick-task', {
                 body: { username, password }
             })
 
