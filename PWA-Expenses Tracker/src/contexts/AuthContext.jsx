@@ -58,41 +58,37 @@ export const AuthProvider = ({ children }) => {
     }
 
     // Fetch user profile using RPC function (bypass RLS for faster fetch)
-    const fetchProfile = useCallback(async (userId, retryCount = 0) => {
+    // SIMPLIFIED VERSION: No timeout race, no retry logic - just simple await
+    const fetchProfile = useCallback(async (userId) => {
         if (!userId) {
             setProfile(null)
             setUserRole(null)
             return
         }
 
-        // Debounce: Không fetch lại nếu vừa fetch xong trong 5 giây
+        // Strong debounce: Không fetch lại nếu vừa fetch trong 10 giây
         const now = Date.now()
-        if (lastUserIdRef.current === userId && now - lastFetchTimeRef.current < 5000) {
+        if (lastUserIdRef.current === userId && now - lastFetchTimeRef.current < 10000) {
             return
         }
 
-        // Tránh fetch trùng lặp
-        if (isFetchingRef.current && retryCount === 0) {
+        // Block concurrent fetches
+        if (isFetchingRef.current) {
             return
         }
 
         isFetchingRef.current = true
         lastUserIdRef.current = userId
-        lastFetchTimeRef.current = Date.now() // Set ngay khi bắt đầu để chặn requests trùng
+        lastFetchTimeRef.current = now
 
         try {
-            // Timeout 5 giây cho mỗi attempt (tăng từ 3s)
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
-            )
-
-            // Sử dụng RPC function thay vì query trực tiếp (bypass RLS)
-            const queryPromise = supabase.rpc('get_my_profile', { user_id: userId }).single()
-
-            const { data, error } = await Promise.race([queryPromise, timeoutPromise])
+            // Simple await - no Promise.race (which was buggy with Supabase)
+            const { data, error } = await supabase
+                .rpc('get_my_profile', { user_id: userId })
+                .single()
 
             if (error) {
-                // Fallback: thử query trực tiếp nếu RPC không tồn tại
+                // Fallback: direct query if RPC doesn't exist
                 if (error.code === 'PGRST202') {
                     const { data: fallbackData, error: fallbackError } = await supabase
                         .from('profiles')
@@ -104,13 +100,13 @@ export const AuthProvider = ({ children }) => {
                         setProfile(fallbackData)
                         setUserRole(fallbackData?.role || 'owner')
                         cacheProfile(fallbackData, fallbackData?.role || 'owner')
-                        lastFetchTimeRef.current = Date.now()
                         return
                     }
                 }
-                // Nếu chưa có profile, mặc định là owner
-                setUserRole('owner')
-                lastFetchTimeRef.current = Date.now()
+                // Default to owner if no profile
+                if (!userRoleRef.current) {
+                    setUserRole('owner')
+                }
                 return
             }
 
@@ -124,9 +120,8 @@ export const AuthProvider = ({ children }) => {
                 return
             }
 
-            // For Staff: Check if they still have a parent (not deleted)
+            // For Staff: Check if they still have a parent
             if (data?.role === 'staff') {
-                // Staff without parent_id means they've been removed by owner
                 if (!data?.parent_id) {
                     console.warn('Staff account has no parent, logging out...')
                     alert('Tài khoản của bạn đã bị xóa khỏi hệ thống. Vui lòng liên hệ quản trị viên.')
@@ -151,23 +146,12 @@ export const AuthProvider = ({ children }) => {
 
             setUserRole(data?.role || 'owner')
             cacheProfile(data, data?.role || 'owner')
-            lastFetchTimeRef.current = Date.now()
         } catch (err) {
-            // Retry với exponential backoff (tối đa 2 lần, delay tăng dần)
-            if (retryCount < 2 && err.message === 'Profile fetch timeout') {
-                const backoffDelay = Math.pow(2, retryCount) * 1000 // 1s, 2s
-                console.warn(`fetchProfile timeout, retrying in ${backoffDelay}ms...`)
-                await new Promise(resolve => setTimeout(resolve, backoffDelay))
-                isFetchingRef.current = false // Reset để cho phép retry
-                return fetchProfile(userId, retryCount + 1)
-            }
-
             console.error('Error in fetchProfile:', err)
-            // Timeout hoặc lỗi khác - nếu đã có cache thì không cần set mặc định
+            // Use cached role or default to owner
             if (!userRoleRef.current) {
                 setUserRole('owner')
             }
-            lastFetchTimeRef.current = Date.now()
         } finally {
             isFetchingRef.current = false
         }
@@ -218,12 +202,10 @@ export const AuthProvider = ({ children }) => {
                     const hasCachedProfile = cachedProfile && cachedProfile.id === currentUser.id
 
                     if (hasCachedProfile && userRole) {
-                        // Cache hợp lệ - set loading false ngay lập tức, KHÔNG fetch lại
+                        // Cache hợp lệ - set loading false ngay lập tức
                         setLoading(false)
                     } else {
-                        // Không có cache - phải fetch và đợi
-                        // Delay 1 giây để đợi session token được verify với RLS
-                        await new Promise(resolve => setTimeout(resolve, 1000))
+                        // Không có cache - fetch profile
                         await fetchProfile(currentUser.id)
                     }
                 }
