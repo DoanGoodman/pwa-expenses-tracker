@@ -78,11 +78,12 @@ export const AuthProvider = ({ children }) => {
 
         isFetchingRef.current = true
         lastUserIdRef.current = userId
+        lastFetchTimeRef.current = Date.now() // Set ngay khi bắt đầu để chặn requests trùng
 
         try {
-            // Timeout 3 giây cho mỗi attempt
+            // Timeout 5 giây cho mỗi attempt (tăng từ 3s)
             const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Profile fetch timeout')), 3000)
+                setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
             )
 
             // Sử dụng RPC function thay vì query trực tiếp (bypass RLS)
@@ -217,11 +218,8 @@ export const AuthProvider = ({ children }) => {
                     const hasCachedProfile = cachedProfile && cachedProfile.id === currentUser.id
 
                     if (hasCachedProfile && userRole) {
-                        // Cache hợp lệ - set loading false ngay lập tức
-                        console.log('Using cached profile, role:', userRole)
+                        // Cache hợp lệ - set loading false ngay lập tức, KHÔNG fetch lại
                         setLoading(false)
-                        // Verify lại profile sau (không block UI)
-                        fetchProfile(currentUser.id).catch(console.error)
                     } else {
                         // Không có cache - phải fetch và đợi
                         // Delay 1 giây để đợi session token được verify với RLS
@@ -243,9 +241,15 @@ export const AuthProvider = ({ children }) => {
             setLoading(false)
         }, 5000)
 
-        // Listen for auth changes
+        // Listen for auth changes (chỉ handle SIGNED_IN và SIGNED_OUT)
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            async (_event, session) => {
+            async (event, session) => {
+                // Bỏ qua INITIAL_SESSION vì getSession đã handle
+                // Bỏ qua TOKEN_REFRESHED vì không cần fetch lại profile
+                if (event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
+                    return
+                }
+
                 const currentUser = session?.user ?? null
                 setUser(currentUser)
 
@@ -256,9 +260,9 @@ export const AuthProvider = ({ children }) => {
                     clearUserIdCache()
                 }
 
-                if (currentUser) {
+                if (event === 'SIGNED_IN' && currentUser) {
                     await fetchProfile(currentUser.id)
-                } else {
+                } else if (event === 'SIGNED_OUT') {
                     setProfile(null)
                     setUserRole(null)
                 }
