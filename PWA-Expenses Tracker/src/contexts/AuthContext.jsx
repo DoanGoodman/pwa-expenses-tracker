@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { supabase, isDemoMode } from '../lib/supabase'
 import { clearUserIdCache, setUserIdCache } from '../hooks/useSupabase'
 
@@ -33,6 +33,12 @@ export const AuthProvider = ({ children }) => {
     })
     const [loading, setLoading] = useState(true)
 
+    // Refs để tránh duplicate fetch và infinite loop
+    const isFetchingRef = useRef(false)
+    const lastFetchTimeRef = useRef(0)
+    const lastUserIdRef = useRef(null)
+    const userRoleRef = useRef(userRole)
+
     // Helper: Save profile to cache
     const cacheProfile = (profileData, role) => {
         try {
@@ -52,32 +58,45 @@ export const AuthProvider = ({ children }) => {
     }
 
     // Fetch user profile using RPC function (bypass RLS for faster fetch)
-    const fetchProfile = useCallback(async (userId, retryCount = 0) => {
-        console.log('fetchProfile called with userId:', userId, 'retry:', retryCount)
+    // SIMPLIFIED VERSION: No timeout race, no retry logic - just simple await
+    const fetchProfile = useCallback(async (userId) => {
         if (!userId) {
             setProfile(null)
             setUserRole(null)
             return
         }
 
+        // Strong debounce: Không fetch lại nếu vừa fetch trong 10 giây
+        const now = Date.now()
+        if (lastUserIdRef.current === userId && now - lastFetchTimeRef.current < 10000) {
+            return
+        }
+
+        // Block concurrent fetches
+        if (isFetchingRef.current) {
+            return
+        }
+
+        isFetchingRef.current = true
+        lastUserIdRef.current = userId
+        lastFetchTimeRef.current = now
+
+        // Timeout với AbortController (10 giây)
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 10000)
+
         try {
-            // Timeout 2 giây cho mỗi attempt
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Profile fetch timeout')), 2000)
-            )
+            // Supabase với AbortSignal
+            const { data, error } = await supabase
+                .rpc('get_my_profile', { user_id: userId })
+                .abortSignal(controller.signal)
+                .single()
 
-            // Sử dụng RPC function thay vì query trực tiếp (bypass RLS)
-            const queryPromise = supabase.rpc('get_my_profile', { user_id: userId }).single()
-
-            const { data, error } = await Promise.race([queryPromise, timeoutPromise])
-
-            console.log('fetchProfile result:', { data, error })
+            clearTimeout(timeoutId)
 
             if (error) {
-                console.error('Error fetching profile:', error)
-                // Fallback: thử query trực tiếp nếu RPC không tồn tại
+                // Fallback: direct query if RPC doesn't exist
                 if (error.code === 'PGRST202') {
-                    console.log('RPC not found, falling back to direct query')
                     const { data: fallbackData, error: fallbackError } = await supabase
                         .from('profiles')
                         .select('*')
@@ -91,8 +110,10 @@ export const AuthProvider = ({ children }) => {
                         return
                     }
                 }
-                // Nếu chưa có profile, mặc định là owner
-                setUserRole('owner')
+                // Default to owner if no profile
+                if (!userRoleRef.current) {
+                    setUserRole('owner')
+                }
                 return
             }
 
@@ -106,9 +127,8 @@ export const AuthProvider = ({ children }) => {
                 return
             }
 
-            // For Staff: Check if they still have a parent (not deleted)
+            // For Staff: Check if they still have a parent
             if (data?.role === 'staff') {
-                // Staff without parent_id means they've been removed by owner
                 if (!data?.parent_id) {
                     console.warn('Staff account has no parent, logging out...')
                     alert('Tài khoản của bạn đã bị xóa khỏi hệ thống. Vui lòng liên hệ quản trị viên.')
@@ -133,27 +153,30 @@ export const AuthProvider = ({ children }) => {
 
             setUserRole(data?.role || 'owner')
             cacheProfile(data, data?.role || 'owner')
-            console.log('userRole set to:', data?.role || 'owner')
         } catch (err) {
-            // Chỉ log warning cho timeout (không phải error nghiêm trọng)
-            if (err.message === 'Profile fetch timeout') {
-                console.warn('fetchProfile timeout, retry:', retryCount)
+            clearTimeout(timeoutId)
+
+            // Handle abort (timeout)
+            if (err.name === 'AbortError') {
+                console.warn('fetchProfile: Request timed out after 10s')
             } else {
                 console.error('Error in fetchProfile:', err)
             }
 
-            // Retry 2 lần sau 500ms nếu timeout
-            if (retryCount < 2 && err.message === 'Profile fetch timeout') {
-                await new Promise(resolve => setTimeout(resolve, 500))
-                return fetchProfile(userId, retryCount + 1)
-            }
-
-            // Timeout hoặc lỗi khác - nếu đã có cache thì không cần set mặc định
-            if (!userRole) {
+            // Use cached role or default to owner
+            if (!userRoleRef.current) {
                 setUserRole('owner')
             }
+        } finally {
+            isFetchingRef.current = false
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
+
+    // Sync userRoleRef với userRole state
+    useEffect(() => {
+        userRoleRef.current = userRole
+    }, [userRole])
 
     useEffect(() => {
         // Check for demo mode
@@ -195,14 +218,9 @@ export const AuthProvider = ({ children }) => {
 
                     if (hasCachedProfile && userRole) {
                         // Cache hợp lệ - set loading false ngay lập tức
-                        console.log('Using cached profile, role:', userRole)
                         setLoading(false)
-                        // Verify lại profile sau (không block UI)
-                        fetchProfile(currentUser.id).catch(console.error)
                     } else {
-                        // Không có cache - phải fetch và đợi
-                        // Delay 1 giây để đợi session token được verify với RLS
-                        await new Promise(resolve => setTimeout(resolve, 1000))
+                        // Không có cache - fetch profile
                         await fetchProfile(currentUser.id)
                     }
                 }
@@ -220,9 +238,15 @@ export const AuthProvider = ({ children }) => {
             setLoading(false)
         }, 5000)
 
-        // Listen for auth changes
+        // Listen for auth changes (chỉ handle SIGNED_IN và SIGNED_OUT)
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            async (_event, session) => {
+            async (event, session) => {
+                // Bỏ qua INITIAL_SESSION vì getSession đã handle
+                // Bỏ qua TOKEN_REFRESHED vì không cần fetch lại profile
+                if (event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
+                    return
+                }
+
                 const currentUser = session?.user ?? null
                 setUser(currentUser)
 
@@ -233,9 +257,9 @@ export const AuthProvider = ({ children }) => {
                     clearUserIdCache()
                 }
 
-                if (currentUser) {
+                if (event === 'SIGNED_IN' && currentUser) {
                     await fetchProfile(currentUser.id)
-                } else {
+                } else if (event === 'SIGNED_OUT') {
                     setProfile(null)
                     setUserRole(null)
                 }
@@ -246,7 +270,8 @@ export const AuthProvider = ({ children }) => {
             subscription.unsubscribe()
             clearTimeout(safetyTimeout)
         }
-    }, [fetchProfile])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
 
     // Sign up with email
     const signUp = async (email, password) => {
