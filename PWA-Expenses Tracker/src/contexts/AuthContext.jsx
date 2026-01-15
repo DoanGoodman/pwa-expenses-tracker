@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { supabase, isDemoMode } from '../lib/supabase'
 import { clearUserIdCache, setUserIdCache } from '../hooks/useSupabase'
 
@@ -33,6 +33,12 @@ export const AuthProvider = ({ children }) => {
     })
     const [loading, setLoading] = useState(true)
 
+    // Refs để tránh duplicate fetch và infinite loop
+    const isFetchingRef = useRef(false)
+    const lastFetchTimeRef = useRef(0)
+    const lastUserIdRef = useRef(null)
+    const userRoleRef = useRef(userRole)
+
     // Helper: Save profile to cache
     const cacheProfile = (profileData, role) => {
         try {
@@ -53,17 +59,30 @@ export const AuthProvider = ({ children }) => {
 
     // Fetch user profile using RPC function (bypass RLS for faster fetch)
     const fetchProfile = useCallback(async (userId, retryCount = 0) => {
-        console.log('fetchProfile called with userId:', userId, 'retry:', retryCount)
         if (!userId) {
             setProfile(null)
             setUserRole(null)
             return
         }
 
+        // Debounce: Không fetch lại nếu vừa fetch xong trong 5 giây
+        const now = Date.now()
+        if (lastUserIdRef.current === userId && now - lastFetchTimeRef.current < 5000) {
+            return
+        }
+
+        // Tránh fetch trùng lặp
+        if (isFetchingRef.current && retryCount === 0) {
+            return
+        }
+
+        isFetchingRef.current = true
+        lastUserIdRef.current = userId
+
         try {
-            // Timeout 2 giây cho mỗi attempt
+            // Timeout 3 giây cho mỗi attempt
             const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Profile fetch timeout')), 2000)
+                setTimeout(() => reject(new Error('Profile fetch timeout')), 3000)
             )
 
             // Sử dụng RPC function thay vì query trực tiếp (bypass RLS)
@@ -71,13 +90,9 @@ export const AuthProvider = ({ children }) => {
 
             const { data, error } = await Promise.race([queryPromise, timeoutPromise])
 
-            console.log('fetchProfile result:', { data, error })
-
             if (error) {
-                console.error('Error fetching profile:', error)
                 // Fallback: thử query trực tiếp nếu RPC không tồn tại
                 if (error.code === 'PGRST202') {
-                    console.log('RPC not found, falling back to direct query')
                     const { data: fallbackData, error: fallbackError } = await supabase
                         .from('profiles')
                         .select('*')
@@ -88,11 +103,13 @@ export const AuthProvider = ({ children }) => {
                         setProfile(fallbackData)
                         setUserRole(fallbackData?.role || 'owner')
                         cacheProfile(fallbackData, fallbackData?.role || 'owner')
+                        lastFetchTimeRef.current = Date.now()
                         return
                     }
                 }
                 // Nếu chưa có profile, mặc định là owner
                 setUserRole('owner')
+                lastFetchTimeRef.current = Date.now()
                 return
             }
 
@@ -133,27 +150,33 @@ export const AuthProvider = ({ children }) => {
 
             setUserRole(data?.role || 'owner')
             cacheProfile(data, data?.role || 'owner')
-            console.log('userRole set to:', data?.role || 'owner')
+            lastFetchTimeRef.current = Date.now()
         } catch (err) {
-            // Chỉ log warning cho timeout (không phải error nghiêm trọng)
-            if (err.message === 'Profile fetch timeout') {
-                console.warn('fetchProfile timeout, retry:', retryCount)
-            } else {
-                console.error('Error in fetchProfile:', err)
-            }
-
-            // Retry 2 lần sau 500ms nếu timeout
+            // Retry với exponential backoff (tối đa 2 lần, delay tăng dần)
             if (retryCount < 2 && err.message === 'Profile fetch timeout') {
-                await new Promise(resolve => setTimeout(resolve, 500))
+                const backoffDelay = Math.pow(2, retryCount) * 1000 // 1s, 2s
+                console.warn(`fetchProfile timeout, retrying in ${backoffDelay}ms...`)
+                await new Promise(resolve => setTimeout(resolve, backoffDelay))
+                isFetchingRef.current = false // Reset để cho phép retry
                 return fetchProfile(userId, retryCount + 1)
             }
 
+            console.error('Error in fetchProfile:', err)
             // Timeout hoặc lỗi khác - nếu đã có cache thì không cần set mặc định
-            if (!userRole) {
+            if (!userRoleRef.current) {
                 setUserRole('owner')
             }
+            lastFetchTimeRef.current = Date.now()
+        } finally {
+            isFetchingRef.current = false
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
+
+    // Sync userRoleRef với userRole state
+    useEffect(() => {
+        userRoleRef.current = userRole
+    }, [userRole])
 
     useEffect(() => {
         // Check for demo mode
@@ -246,7 +269,8 @@ export const AuthProvider = ({ children }) => {
             subscription.unsubscribe()
             clearTimeout(safetyTimeout)
         }
-    }, [fetchProfile])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
 
     // Sign up with email
     const signUp = async (email, password) => {
