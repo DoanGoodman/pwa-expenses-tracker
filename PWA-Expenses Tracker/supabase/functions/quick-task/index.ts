@@ -124,12 +124,13 @@ serve(async (req) => {
         // Tạo email ảo
         const virtualEmail = `${username}@qswings.app`;
 
-        // Kiểm tra số lượng staff hiện tại của owner (tối đa 3)
+        // Kiểm tra số lượng staff hiện tại của owner (tối đa 3, chỉ đếm active)
         const { data: existingStaff, error: countError } = await supabaseAdmin
             .from("profiles")
             .select("id")
             .eq("parent_id", caller.id)
-            .eq("role", "staff");
+            .eq("role", "staff")
+            .eq("is_active", true);
 
         if (countError) {
             return new Response(
@@ -190,6 +191,7 @@ serve(async (req) => {
                 username: username,
                 role: "staff",
                 parent_id: caller.id, // Liên kết với owner tạo ra
+                is_active: true, // Đảm bảo staff mới active
             })
             .eq("id", newUser.user.id);
 
