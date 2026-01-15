@@ -391,8 +391,34 @@ export const useExpenses = (filters = {}) => {
                 query = query.ilike('description', `%${filters.search}%`)
             }
 
-            // Simple await - không dùng Promise.race vì Supabase thenable không tương thích
-            const { data: expensesData, error: expensesError } = await query
+            // AbortController với timeout 8 giây để tránh treo khi app resume
+            const controller = new AbortController()
+            const timeoutId = setTimeout(() => {
+                console.warn('[useExpenses] Query timeout after 8s - aborting')
+                controller.abort()
+            }, 8000)
+
+            console.log('[useExpenses] Executing query...')
+
+            let expensesData = null
+            let expensesError = null
+
+            try {
+                const result = await query.abortSignal(controller.signal)
+                expensesData = result.data
+                expensesError = result.error
+                console.log('[useExpenses] Query returned:', expensesData?.length, 'items')
+            } catch (queryError) {
+                if (queryError.name === 'AbortError') {
+                    console.warn('[useExpenses] Query was aborted due to timeout')
+                    setExpenses([])
+                    setLoading(false)
+                    return
+                }
+                throw queryError
+            } finally {
+                clearTimeout(timeoutId)
+            }
 
             if (expensesError) throw expensesError
 
@@ -699,9 +725,36 @@ export const useDashboardStats = (startMonth, endMonth, projectId = null, userId
                     query = query.eq('project_id', projectId)
                 }
 
-                const { data: expensesData, error } = await query
+                // AbortController với timeout 8 giây để tránh treo khi app resume
+                const controller = new AbortController()
+                const timeoutId = setTimeout(() => {
+                    console.warn('[useDashboardStats] Query timeout after 8s - aborting')
+                    controller.abort()
+                }, 8000)
 
-                if (error) throw error
+                console.log('[useDashboardStats] Executing query...')
+
+                let expensesData = null
+                let queryError = null
+
+                try {
+                    const result = await query.abortSignal(controller.signal)
+                    expensesData = result.data
+                    queryError = result.error
+                    console.log('[useDashboardStats] Query returned:', expensesData?.length, 'items')
+                } catch (abortError) {
+                    if (abortError.name === 'AbortError') {
+                        console.warn('[useDashboardStats] Query was aborted due to timeout')
+                        setStats({ total: 0, byCategory: [], byMonth: [] })
+                        setLoading(false)
+                        return
+                    }
+                    throw abortError
+                } finally {
+                    clearTimeout(timeoutId)
+                }
+
+                if (queryError) throw queryError
 
                 if (!expensesData || expensesData.length === 0) {
                     setStats({ total: 0, byCategory: [], byMonth: [] })
