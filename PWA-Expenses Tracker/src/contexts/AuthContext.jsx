@@ -38,6 +38,9 @@ export const AuthProvider = ({ children }) => {
     const lastFetchTimeRef = useRef(0)
     const lastUserIdRef = useRef(null)
     const userRoleRef = useRef(userRole)
+    const retryCountRef = useRef(0)
+    const maxRetries = 3
+    const staleTimeMs = 5 * 60 * 1000 // 5 phút - không fetch lại nếu profile mới hơn 5 phút
 
     // Helper: Save profile to cache
     const cacheProfile = (profileData, role) => {
@@ -57,36 +60,67 @@ export const AuthProvider = ({ children }) => {
         }
     }
 
-    // Fetch user profile using RPC function (bypass RLS for faster fetch)
-    // SIMPLIFIED VERSION: No timeout race, no retry logic - just simple await
-    const fetchProfile = useCallback(async (userId) => {
+    /**
+     * Fetch user profile với đầy đủ cơ chế bảo vệ:
+     * - Fetching lock (prevent concurrent calls)
+     * - Stale-time check (5 phút)
+     * - Exponential backoff retry (max 3 lần)
+     * - Proper error/timeout handling
+     * 
+     * @param {string} userId - User ID to fetch
+     * @param {object} options - { fromVisibilityChange: boolean, forceRefresh: boolean }
+     */
+    const fetchProfile = useCallback(async (userId, options = {}) => {
+        const { fromVisibilityChange = false, forceRefresh = false } = options
+
         if (!userId) {
             setProfile(null)
             setUserRole(null)
+            setLoading(false)
             return
         }
 
-        // Strong debounce: Không fetch lại nếu vừa fetch trong 10 giây
         const now = Date.now()
-        if (lastUserIdRef.current === userId && now - lastFetchTimeRef.current < 10000) {
+
+        // === GUARD 1: Stale-time check (5 phút) ===
+        // Nếu gọi từ visibility change và profile còn mới, skip
+        if (fromVisibilityChange && !forceRefresh) {
+            if (lastUserIdRef.current === userId && now - lastFetchTimeRef.current < staleTimeMs) {
+                console.log('[AuthContext] Profile still fresh, skipping fetch on visibility change')
+                return
+            }
+        }
+
+        // === GUARD 2: Short debounce (2 giây) để tránh spam ===
+        if (lastUserIdRef.current === userId && now - lastFetchTimeRef.current < 2000 && !forceRefresh) {
+            console.log('[AuthContext] Debounce: Too soon since last fetch')
             return
         }
 
-        // Block concurrent fetches
+        // === GUARD 3: Fetching lock (prevent concurrent) ===
         if (isFetchingRef.current) {
+            console.log('[AuthContext] Already fetching, ignoring duplicate call')
             return
         }
 
+        // === GUARD 4: Max retry limit ===
+        if (retryCountRef.current >= maxRetries) {
+            console.error('[AuthContext] Max retries reached, stopping')
+            setLoading(false)
+            // Reset retry count after showing error
+            retryCountRef.current = 0
+            return
+        }
+
+        // Set locks
         isFetchingRef.current = true
         lastUserIdRef.current = userId
-        lastFetchTimeRef.current = now
 
         // Timeout với AbortController (10 giây)
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), 10000)
 
         try {
-            // Supabase với AbortSignal
             const { data, error } = await supabase
                 .rpc('get_my_profile', { user_id: userId })
                 .abortSignal(controller.signal)
@@ -107,6 +141,8 @@ export const AuthProvider = ({ children }) => {
                         setProfile(fallbackData)
                         setUserRole(fallbackData?.role || 'owner')
                         cacheProfile(fallbackData, fallbackData?.role || 'owner')
+                        lastFetchTimeRef.current = Date.now()
+                        retryCountRef.current = 0 // Reset retry on success
                         return
                     }
                 }
@@ -114,10 +150,14 @@ export const AuthProvider = ({ children }) => {
                 if (!userRoleRef.current) {
                     setUserRole('owner')
                 }
+                retryCountRef.current = 0
                 return
             }
 
+            // === SUCCESS: Update state and cache ===
             setProfile(data)
+            lastFetchTimeRef.current = Date.now()
+            retryCountRef.current = 0 // Reset retry count on success
 
             // Check if account is disabled
             if (data?.is_active === false) {
@@ -153,22 +193,43 @@ export const AuthProvider = ({ children }) => {
 
             setUserRole(data?.role || 'owner')
             cacheProfile(data, data?.role || 'owner')
+
         } catch (err) {
             clearTimeout(timeoutId)
 
             // Handle abort (timeout)
             if (err.name === 'AbortError') {
-                console.warn('fetchProfile: Request timed out after 10s')
+                console.warn(`[AuthContext] fetchProfile timeout (attempt ${retryCountRef.current + 1}/${maxRetries})`)
+                retryCountRef.current++
+
+                // === EXPONENTIAL BACKOFF RETRY ===
+                if (retryCountRef.current < maxRetries && !fromVisibilityChange) {
+                    const backoffDelay = Math.pow(2, retryCountRef.current) * 1000 // 2s, 4s, 8s
+                    console.log(`[AuthContext] Retrying in ${backoffDelay}ms...`)
+
+                    // Release lock before retry
+                    isFetchingRef.current = false
+
+                    await new Promise(resolve => setTimeout(resolve, backoffDelay))
+                    return fetchProfile(userId, { fromVisibilityChange, forceRefresh })
+                } else {
+                    console.error('[AuthContext] All retry attempts failed or skipped for visibility change')
+                    // Use cached role or default to owner
+                    if (!userRoleRef.current) {
+                        setUserRole('owner')
+                    }
+                }
             } else {
                 console.error('Error in fetchProfile:', err)
-            }
-
-            // Use cached role or default to owner
-            if (!userRoleRef.current) {
-                setUserRole('owner')
+                // Use cached role or default to owner
+                if (!userRoleRef.current) {
+                    setUserRole('owner')
+                }
             }
         } finally {
+            // === ALWAYS release lock and stop loading ===
             isFetchingRef.current = false
+            setLoading(false)
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
@@ -266,9 +327,26 @@ export const AuthProvider = ({ children }) => {
             }
         )
 
+        // === VISIBILITY CHANGE HANDLER ===
+        // Chỉ fetch lại profile nếu đã cũ hơn 5 phút (stale-time)
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                const currentUser = user
+                if (currentUser?.id) {
+                    console.log('[AuthContext] App resumed, checking if profile refresh needed...')
+                    // Gọi với flag fromVisibilityChange để áp dụng stale-time check
+                    fetchProfile(currentUser.id, { fromVisibilityChange: true })
+                }
+            }
+        }
+
+        // Sử dụng visibilitychange thay vì focus để tránh trigger quá nhiều
+        document.addEventListener('visibilitychange', handleVisibilityChange)
+
         return () => {
             subscription.unsubscribe()
             clearTimeout(safetyTimeout)
+            document.removeEventListener('visibilitychange', handleVisibilityChange)
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
