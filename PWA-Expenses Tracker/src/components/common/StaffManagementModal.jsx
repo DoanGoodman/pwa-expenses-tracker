@@ -31,7 +31,10 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
 
     // Fetch danh sách staff
     const fetchStaffList = async () => {
-        if (!user) return
+        if (!user) {
+            setLoading(false)
+            return
+        }
 
         setLoading(true)
         try {
@@ -54,7 +57,11 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
 
     useEffect(() => {
         if (isOpen) {
-            fetchStaffList()
+            if (user) {
+                fetchStaffList()
+            } else {
+                setLoading(false)
+            }
             setError('')
             setSuccess('')
         }
@@ -84,8 +91,8 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
             setUsername('')
             setPassword('')
             setShowForm(false)
-            // Đợi một chút để database sync xong trước khi fetch
-            await new Promise(resolve => setTimeout(resolve, 500))
+
+            // Reload list
             await fetchStaffList()
         } catch (err) {
             console.error('Error creating staff:', err)
