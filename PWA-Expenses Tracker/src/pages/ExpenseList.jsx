@@ -50,9 +50,13 @@ const ExpenseList = () => {
     const { updateExpense, loading: updating } = useUpdateExpense()
 
     // Refetch when navigating to this page (e.g., after bulk save from receipt scanner)
+    // Chỉ refetch khi có userId để tránh gọi thừa
     useEffect(() => {
-        refetch()
-    }, [location.key])
+        if (user?.id) {
+            refetch()
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.key, user?.id])
 
     // Handle filter change from Bottom Sheet
     const handleFilterChange = (filters) => {

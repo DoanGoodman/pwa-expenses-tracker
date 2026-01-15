@@ -332,11 +332,13 @@ export const useExpenses = (filters = {}) => {
         }
 
         try {
-            // Use passed userId or fetch if missing
-            const userId = filters.userId || await getCurrentUserId()
+            // Nếu userId không được truyền vào, đợi thay vì gọi getCurrentUserId (có thể treo)
+            const userId = filters.userId
 
             if (!userId) {
-                console.warn('useExpenses: No user ID found')
+                // Không có userId - component có thể đang đợi AuthContext load
+                // Không gọi getCurrentUserId ở đây vì nó có thể treo
+                console.log('[useExpenses] No userId provided, waiting for AuthContext...')
                 setExpenses([])
                 setLoading(false)
                 return
