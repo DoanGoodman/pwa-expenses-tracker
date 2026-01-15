@@ -571,7 +571,7 @@ export const useDeleteExpense = () => {
 }
 
 // Hook để lấy thống kê dashboard (with real Supabase data)
-export const useDashboardStats = (startMonth, endMonth, projectId = null) => {
+export const useDashboardStats = (startMonth, endMonth, projectId = null, userId = null) => {
     const [stats, setStats] = useState({
         total: 0,
         byCategory: [],
@@ -645,8 +645,10 @@ export const useDashboardStats = (startMonth, endMonth, projectId = null) => {
 
             // --- REAL SUPABASE DATA ---
             try {
-                const userId = await getCurrentUserId()
+                // Không gọi getCurrentUserId() vì có thể treo
+                // Đợi userId được truyền từ AuthContext
                 if (!userId) {
+                    console.log('[useDashboardStats] No userId provided, waiting for AuthContext...')
                     setStats({ total: 0, byCategory: [], byMonth: [] })
                     setLoading(false)
                     return
@@ -740,7 +742,7 @@ export const useDashboardStats = (startMonth, endMonth, projectId = null) => {
         }
 
         calculateStats()
-    }, [startMonth, endMonth, projectId])
+    }, [startMonth, endMonth, projectId, userId])
 
     return { stats, loading }
 }
