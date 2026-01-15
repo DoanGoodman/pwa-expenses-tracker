@@ -377,30 +377,47 @@ export const useExpenses = (filters = {}) => {
                 query = query.ilike('description', `%${filters.search}%`)
             }
 
-            const { data: expensesData, error: expensesError } = await query
+            // Timeout 15s cho query chính
+            const { data: expensesData, error: expensesError } = await Promise.race([
+                query,
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Expenses query timeout')), 15000))
+            ])
 
             if (expensesError) throw expensesError
 
             if (expensesData) {
                 // 2. Fetch Projects and Categories for manual join
                 // RLS handles visibility for projects
-                const [projectsResponse, categoriesResponse] = await Promise.all([
-                    supabase.from('projects').select('id, name'),
-                    supabase.from('categories').select('id, name')
-                ])
+                // Timeout 10s cho việc fetch projects/categories
+                try {
+                    const [projectsResponse, categoriesResponse] = await Promise.race([
+                        Promise.all([
+                            supabase.from('projects').select('id, name'),
+                            supabase.from('categories').select('id, name')
+                        ]),
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('Join data fetch timeout')), 10000))
+                    ])
 
-                const projectsMap = new Map(projectsResponse.data?.map(p => [p.id, p]) || [])
-                const categoriesMap = new Map(categoriesResponse.data?.map(c => [c.id, c]) || [])
+                    const projectsMap = new Map(projectsResponse.data?.map(p => [p.id, p]) || [])
+                    const categoriesMap = new Map(categoriesResponse.data?.map(c => [c.id, c]) || [])
 
-                // 3. Manual Join
-                const enriched = expensesData.map(expense => ({
-                    ...expense,
-                    project: projectsMap.get(expense.project_id),
-                    category: categoriesMap.get(expense.category_id)
-                }))
+                    // 3. Manual Join
+                    const enriched = expensesData.map(expense => ({
+                        ...expense,
+                        project: projectsMap.get(expense.project_id),
+                        category: categoriesMap.get(expense.category_id)
+                    }))
 
-                setExpenses(enriched)
+                    setExpenses(enriched)
+                } catch (joinError) {
+                    console.warn('Error fetching join data (timeout or failed), showing raw expenses:', joinError)
+                    // Fallback: Show expenses without enriched data logic if join fails
+                    setExpenses(expensesData)
+                }
+            } else {
+                setExpenses([])
             }
+
         } catch (error) {
             console.error('Error fetching expenses:', error)
             alert('Lỗi tải chi phí: ' + error.message)
