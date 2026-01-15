@@ -425,6 +425,14 @@ export const useExpenses = (filters = {}) => {
 
     useEffect(() => {
         fetchExpenses()
+
+        // Safety timeout: Nếu loading quá 10 giây, force stop
+        const safetyTimeout = setTimeout(() => {
+            console.warn('[useExpenses] Safety timeout - forcing loading to false')
+            setLoading(false)
+        }, 10000)
+
+        return () => clearTimeout(safetyTimeout)
     }, [fetchExpenses])
 
     return { expenses, loading, refetch: fetchExpenses }
@@ -751,6 +759,14 @@ export const useDashboardStats = (startMonth, endMonth, projectId = null, userId
         }
 
         calculateStats()
+
+        // Safety timeout: Nếu loading quá 10 giây, force stop
+        const safetyTimeout = setTimeout(() => {
+            console.warn('[useDashboardStats] Safety timeout - forcing loading to false')
+            setLoading(false)
+        }, 10000)
+
+        return () => clearTimeout(safetyTimeout)
     }, [startMonth, endMonth, projectId, userId])
 
     return { stats, loading }
