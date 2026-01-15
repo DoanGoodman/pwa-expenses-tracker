@@ -795,3 +795,91 @@ export const useBulkInsertExpenses = () => {
 
     return { bulkInsert, loading }
 }
+
+// Hook để check và track giới hạn upload (30 ảnh/ngày cho owner)
+// Staff dùng chung quota với Owner (parent)
+export const useUploadLimit = () => {
+    const DAILY_LIMIT = 30
+
+    // Helper: Lấy owner_id (nếu là staff thì lấy parent_id)
+    const getOwnerIdForQuota = async () => {
+        const userId = await getCurrentUserId()
+        if (!userId) return null
+
+        // Check if user is staff with parent
+        const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('role, parent_id')
+            .eq('id', userId)
+            .single()
+
+        if (error || !profile) return userId
+
+        // Staff uses parent's quota
+        if (profile.role === 'staff' && profile.parent_id) {
+            return profile.parent_id
+        }
+
+        return userId
+    }
+
+    // Lấy số lượng upload hôm nay (của owner)
+    const getTodayCount = async () => {
+        if (isDemoMode()) return 0
+
+        try {
+            const ownerId = await getOwnerIdForQuota()
+            if (!ownerId) return 0
+
+            const { data, error } = await supabase.rpc('get_today_upload_count', {
+                p_owner_id: ownerId
+            })
+
+            if (error) {
+                console.error('Error getting upload count:', error)
+                return 0
+            }
+
+            return data || 0
+        } catch (error) {
+            console.error('Error in getTodayCount:', error)
+            return 0
+        }
+    }
+
+    // Check và increment upload count (dùng chung quota với owner)
+    const checkAndIncrementUpload = async () => {
+        if (isDemoMode()) return { allowed: true, remaining: DAILY_LIMIT }
+
+        try {
+            const ownerId = await getOwnerIdForQuota()
+            if (!ownerId) return { allowed: false, remaining: 0, error: 'Chưa đăng nhập' }
+
+            const { data, error } = await supabase.rpc('increment_upload_count', {
+                p_owner_id: ownerId,
+                p_limit: DAILY_LIMIT
+            })
+
+            if (error) {
+                console.error('Error checking upload limit:', error)
+                // Nếu function chưa tồn tại, cho phép upload (fallback)
+                if (error.code === 'PGRST202') {
+                    return { allowed: true, remaining: DAILY_LIMIT }
+                }
+                return { allowed: false, remaining: 0, error: error.message }
+            }
+
+            const result = data?.[0] || { allowed: true, remaining: DAILY_LIMIT }
+            return {
+                allowed: result.allowed,
+                currentCount: result.current_count,
+                remaining: result.remaining
+            }
+        } catch (error) {
+            console.error('Error in checkAndIncrementUpload:', error)
+            return { allowed: true, remaining: DAILY_LIMIT } // Fallback cho phép upload
+        }
+    }
+
+    return { getTodayCount, checkAndIncrementUpload, DAILY_LIMIT }
+}

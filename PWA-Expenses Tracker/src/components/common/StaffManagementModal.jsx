@@ -31,7 +31,10 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
 
     // Fetch danh sách staff
     const fetchStaffList = async () => {
-        if (!user) return
+        if (!user) {
+            setLoading(false)
+            return
+        }
 
         setLoading(true)
         try {
@@ -54,7 +57,11 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
 
     useEffect(() => {
         if (isOpen) {
-            fetchStaffList()
+            if (user) {
+                fetchStaffList()
+            } else {
+                setLoading(false)
+            }
             setError('')
             setSuccess('')
         }
@@ -68,7 +75,7 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
         setCreating(true)
 
         try {
-            // Gọi Edge Function (URL thực tế là 'quick-task')
+            // Gọi Edge Function để tạo staff account (endpoint là 'quick-task')
             const { data, error } = await supabase.functions.invoke('quick-task', {
                 body: { username, password }
             })
@@ -84,8 +91,8 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
             setUsername('')
             setPassword('')
             setShowForm(false)
-            // Đợi một chút để database sync xong trước khi fetch
-            await new Promise(resolve => setTimeout(resolve, 500))
+
+            // Reload list
             await fetchStaffList()
         } catch (err) {
             console.error('Error creating staff:', err)
@@ -95,29 +102,40 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
         }
     }
 
-    // Xóa tài khoản staff (chỉ xóa khỏi profiles, không xóa auth user)
+    // Xóa (vô hiệu hóa) tài khoản staff
     const handleDeleteStaff = async (staffId, staffUsername) => {
-        if (!confirm(`Bạn có chắc muốn xóa tài khoản "${staffUsername}"?`)) return
+        if (!confirm(`Bạn có chắc muốn xóa tài khoản "${staffUsername}"? Nhân viên này sẽ không thể đăng nhập được nữa.`)) return
 
         setDeleting(staffId)
+        setError('') // Clear any previous errors
+
         try {
-            // Lưu ý: Để xóa hoàn toàn cần Edge Function với admin API
-            // Hiện tại chỉ cập nhật để vô hiệu hóa
-            const { error } = await supabase
-                .from('profiles')
-                .update({ parent_id: null }) // Hủy liên kết với owner
-                .eq('id', staffId)
+            // Gọi RPC function (bypass RLS với SECURITY DEFINER)
+            const { data, error } = await supabase.rpc('disable_staff', {
+                p_staff_id: staffId,
+                p_owner_id: user.id
+            })
 
-            if (error) throw error
+            if (error) {
+                console.error('RPC error:', error)
+                throw new Error(error.message)
+            }
 
-            setSuccess(`Đã xóa liên kết với "${staffUsername}"`)
-            fetchStaffList()
+            // RPC trả về boolean, check cả true và falsy
+            if (!data) {
+                throw new Error('Không có quyền xóa tài khoản này')
+            }
+
+            // Cập nhật UI ngay lập tức
+            setStaffList(prev => prev.filter(s => s.id !== staffId))
+            setSuccess(`Đã xóa tài khoản "${staffUsername}"`)
         } catch (err) {
             console.error('Error deleting staff:', err)
-            setError('Không thể xóa tài khoản. Vui lòng thử lại.')
-        } finally {
-            setDeleting(null)
+            setError(err.message || 'Không thể xóa tài khoản. Vui lòng thử lại.')
         }
+
+        // Always reset deleting state
+        setDeleting(null)
     }
 
     if (!isOpen) return null

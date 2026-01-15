@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { Mail, Lock, Eye, EyeOff, Loader2, CheckCircle, User, Users } from 'lucide-react'
+import { supabase } from '../lib/supabase'
+import { Mail, Lock, Eye, EyeOff, Loader2, CheckCircle, User, Users, ShieldCheck } from 'lucide-react'
 import ForgotPasswordBottomSheet from '../components/auth/ForgotPasswordBottomSheet'
 
 // Google Icon SVG Component
@@ -20,6 +21,7 @@ const Login = () => {
     const [isStaffLogin, setIsStaffLogin] = useState(false) // Toggle cho Staff login
     const [email, setEmail] = useState('')
     const [username, setUsername] = useState('') // Username cho Staff
+    const [ownerEmail, setOwnerEmail] = useState('') // Gmail của Owner (bảo mật cho Staff)
     const [password, setPassword] = useState('')
     const [showPassword, setShowPassword] = useState(false)
     const [rememberMe, setRememberMe] = useState(false)
@@ -46,12 +48,54 @@ const Login = () => {
                         setLoading(false)
                         return
                     }
+                    if (!ownerEmail.trim()) {
+                        setError('Vui lòng nhập Gmail của chủ sở hữu')
+                        setLoading(false)
+                        return
+                    }
                     loginEmail = `${username.toLowerCase()}@qswings.app`
                 }
 
                 const result = await signIn(loginEmail, password)
                 if (!result.success) {
                     setError(result.error || 'Có lỗi xảy ra')
+                    return
+                }
+
+                // Nếu là Staff, verify Gmail của Owner
+                if (isStaffLogin && result.user) {
+                    // Lấy profile của staff để check parent_id
+                    const { data: staffProfile, error: profileError } = await supabase
+                        .from('profiles')
+                        .select('parent_id')
+                        .eq('id', result.user.id)
+                        .single()
+
+                    if (profileError || !staffProfile?.parent_id) {
+                        await supabase.auth.signOut()
+                        setError('Tài khoản không hợp lệ')
+                        return
+                    }
+
+                    // Lấy email của Owner
+                    const { data: ownerProfile, error: ownerError } = await supabase
+                        .from('profiles')
+                        .select('email')
+                        .eq('id', staffProfile.parent_id)
+                        .single()
+
+                    if (ownerError || !ownerProfile?.email) {
+                        await supabase.auth.signOut()
+                        setError('Không tìm thấy thông tin chủ sở hữu')
+                        return
+                    }
+
+                    // So sánh email (case-insensitive)
+                    if (ownerProfile.email.toLowerCase() !== ownerEmail.trim().toLowerCase()) {
+                        await supabase.auth.signOut()
+                        setError('Gmail chủ sở hữu không chính xác')
+                        return
+                    }
                 }
             } else {
                 // Đăng ký (chỉ dành cho Owner mode)
@@ -97,6 +141,7 @@ const Login = () => {
         setError('')
         setEmail('')
         setUsername('')
+        setOwnerEmail('')
         setPassword('')
     }
 
@@ -212,17 +257,31 @@ const Login = () => {
                 <form onSubmit={handleSubmit} className="login-form">
                     {/* Username Input - Chỉ cho Staff mode */}
                     {isStaffLogin && isLogin ? (
-                        <div className="login-input-group">
-                            <User size={20} className="login-input-icon" />
-                            <input
-                                type="text"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-                                placeholder="Tên đăng nhập"
-                                className="login-input"
-                                required
-                            />
-                        </div>
+                        <>
+                            <div className="login-input-group">
+                                <User size={20} className="login-input-icon" />
+                                <input
+                                    type="text"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                                    placeholder="Tên đăng nhập"
+                                    className="login-input"
+                                    required
+                                />
+                            </div>
+                            {/* Owner Email Input - Xác thực bảo mật */}
+                            <div className="login-input-group">
+                                <ShieldCheck size={20} className="login-input-icon text-emerald-500" />
+                                <input
+                                    type="email"
+                                    value={ownerEmail}
+                                    onChange={(e) => setOwnerEmail(e.target.value)}
+                                    placeholder="Gmail chủ sở hữu (xác thực)"
+                                    className="login-input"
+                                    required
+                                />
+                            </div>
+                        </>
                     ) : (
                         /* Email Input - Cho Owner mode */
                         <div className="login-input-group">

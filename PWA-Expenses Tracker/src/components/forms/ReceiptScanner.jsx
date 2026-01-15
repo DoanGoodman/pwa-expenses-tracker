@@ -2,6 +2,7 @@ import { useState, useRef } from 'react'
 import { ImagePlus, Save, Plus, ZoomIn, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { compressImage, uploadToR2, analyzeReceipt, calculateTotal, generateFileHash, checkDuplicateHash } from '../../services/receiptService'
+import { useUploadLimit } from '../../hooks/useSupabase'
 import ReceiptItemCard from './ReceiptItemCard'
 import ImageZoomModal from '../common/ImageZoomModal'
 import SelectionBottomSheet from './SelectionBottomSheet'
@@ -10,6 +11,7 @@ import { CategoryIconComponent, getCategoryIconColor } from '../../utils/categor
 // Processing stages for UI feedback
 const STAGES = {
     IDLE: 'idle',
+    CHECKING_LIMIT: 'checking_limit',
     HASHING: 'hashing',
     COMPRESSING: 'compressing',
     UPLOADING: 'uploading',
@@ -25,6 +27,7 @@ const ReceiptScanner = ({
     loading: savingLoading
 }) => {
     const { user } = useAuth()
+    const { checkAndIncrementUpload, DAILY_LIMIT } = useUploadLimit()
     const fileInputRef = useRef(null)
 
     // States
@@ -57,7 +60,14 @@ const ReceiptScanner = ({
         setImagePreview(previewUrl)
 
         try {
-            // Stage 0: Generate file hash for duplicate detection
+            // Stage 0: Check daily upload limit (30 images/day)
+            setStage(STAGES.CHECKING_LIMIT)
+            const limitCheck = await checkAndIncrementUpload()
+            if (!limitCheck.allowed) {
+                throw new Error(`Bạn đã đạt giới hạn ${DAILY_LIMIT} ảnh/ngày. Vui lòng thử lại vào ngày mai!`)
+            }
+
+            // Stage 1: Generate file hash for duplicate detection
             setStage(STAGES.HASHING)
             const hash = await generateFileHash(file)
             setFileHash(hash)
@@ -227,7 +237,7 @@ const ReceiptScanner = ({
     }
 
     // Processing stages (hashing, compressing, uploading, analyzing)
-    if ([STAGES.HASHING, STAGES.COMPRESSING, STAGES.UPLOADING, STAGES.ANALYZING].includes(stage)) {
+    if ([STAGES.CHECKING_LIMIT, STAGES.HASHING, STAGES.COMPRESSING, STAGES.UPLOADING, STAGES.ANALYZING].includes(stage)) {
         return (
             <div className="receipt-scanner-processing expense-form-content">
                 {/* Image preview */}
@@ -249,6 +259,7 @@ const ReceiptScanner = ({
                     <div className="inline-flex items-center gap-3 px-6 py-3 bg-teal-50 rounded-full text-teal-700">
                         <Loader2 size={20} className="animate-spin" />
                         <span className="font-medium">
+                            {stage === STAGES.CHECKING_LIMIT && 'Đang kiểm tra giới hạn upload...'}
                             {stage === STAGES.HASHING && 'Đang kiểm tra trùng lặp...'}
                             {stage === STAGES.COMPRESSING && 'Đang nén ảnh...'}
                             {stage === STAGES.UPLOADING && 'Đang tải lên...'}

@@ -34,8 +34,23 @@ export function useFeaturePermission(featureName = 'receipt_scanner') {
                 return
             }
 
-            // Nếu là staff (tài khoản con), check quyền của parent trước
+            // Nếu là staff (tài khoản con), check quyền và trạng thái của parent trước
             if (isStaff && profile?.parent_id) {
+                // Check if parent is active
+                const { data: parentProfile, error: parentProfileError } = await supabase
+                    .from('profiles')
+                    .select('is_active')
+                    .eq('id', profile.parent_id)
+                    .single()
+
+                if (!parentProfileError && parentProfile?.is_active === false) {
+                    // Parent bị vô hiệu hóa -> Staff không có quyền
+                    setStatus('none')
+                    setLoading(false)
+                    return
+                }
+
+                // Check parent's permission for this feature
                 const { data: parentPermission, error: parentError } = await supabase
                     .from('feature_permissions')
                     .select('status')

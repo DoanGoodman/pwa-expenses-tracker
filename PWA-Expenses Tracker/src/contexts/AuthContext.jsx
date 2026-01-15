@@ -97,6 +97,40 @@ export const AuthProvider = ({ children }) => {
             }
 
             setProfile(data)
+
+            // Check if account is disabled
+            if (data?.is_active === false) {
+                console.warn('Account is disabled, logging out...')
+                alert('Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.')
+                await supabase.auth.signOut()
+                return
+            }
+
+            // For Staff: Check if they still have a parent (not deleted)
+            if (data?.role === 'staff') {
+                // Staff without parent_id means they've been removed by owner
+                if (!data?.parent_id) {
+                    console.warn('Staff account has no parent, logging out...')
+                    alert('Tài khoản của bạn đã bị xóa khỏi hệ thống. Vui lòng liên hệ quản trị viên.')
+                    await supabase.auth.signOut()
+                    return
+                }
+
+                // Check if parent (owner) is also active
+                const { data: parentData, error: parentError } = await supabase
+                    .from('profiles')
+                    .select('is_active')
+                    .eq('id', data.parent_id)
+                    .single()
+
+                if (!parentError && parentData?.is_active === false) {
+                    console.warn('Parent account is disabled, logging out staff...')
+                    alert('Tài khoản chủ sở hữu đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.')
+                    await supabase.auth.signOut()
+                    return
+                }
+            }
+
             setUserRole(data?.role || 'owner')
             cacheProfile(data, data?.role || 'owner')
             console.log('userRole set to:', data?.role || 'owner')
