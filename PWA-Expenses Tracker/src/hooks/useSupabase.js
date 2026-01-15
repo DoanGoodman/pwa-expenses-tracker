@@ -391,34 +391,12 @@ export const useExpenses = (filters = {}) => {
                 query = query.ilike('description', `%${filters.search}%`)
             }
 
-            // AbortController với timeout 8 giây để tránh treo khi app resume
-            const controller = new AbortController()
-            const timeoutId = setTimeout(() => {
-                console.warn('[useExpenses] Query timeout after 8s - aborting')
-                controller.abort()
-            }, 8000)
-
             console.log('[useExpenses] Executing query...')
 
-            let expensesData = null
-            let expensesError = null
+            // Simple await - AbortController gây timeout giả khi tab bị hidden
+            const { data: expensesData, error: expensesError } = await query
 
-            try {
-                const result = await query.abortSignal(controller.signal)
-                expensesData = result.data
-                expensesError = result.error
-                console.log('[useExpenses] Query returned:', expensesData?.length, 'items')
-            } catch (queryError) {
-                if (queryError.name === 'AbortError') {
-                    console.warn('[useExpenses] Query was aborted due to timeout')
-                    setExpenses([])
-                    setLoading(false)
-                    return
-                }
-                throw queryError
-            } finally {
-                clearTimeout(timeoutId)
-            }
+            console.log('[useExpenses] Query returned:', expensesData?.length, 'items')
 
             if (expensesError) throw expensesError
 
@@ -725,34 +703,12 @@ export const useDashboardStats = (startMonth, endMonth, projectId = null, userId
                     query = query.eq('project_id', projectId)
                 }
 
-                // AbortController với timeout 8 giây để tránh treo khi app resume
-                const controller = new AbortController()
-                const timeoutId = setTimeout(() => {
-                    console.warn('[useDashboardStats] Query timeout after 8s - aborting')
-                    controller.abort()
-                }, 8000)
-
                 console.log('[useDashboardStats] Executing query...')
 
-                let expensesData = null
-                let queryError = null
+                // Simple await - AbortController gây timeout giả khi tab bị hidden
+                const { data: expensesData, error: queryError } = await query
 
-                try {
-                    const result = await query.abortSignal(controller.signal)
-                    expensesData = result.data
-                    queryError = result.error
-                    console.log('[useDashboardStats] Query returned:', expensesData?.length, 'items')
-                } catch (abortError) {
-                    if (abortError.name === 'AbortError') {
-                        console.warn('[useDashboardStats] Query was aborted due to timeout')
-                        setStats({ total: 0, byCategory: [], byMonth: [] })
-                        setLoading(false)
-                        return
-                    }
-                    throw abortError
-                } finally {
-                    clearTimeout(timeoutId)
-                }
+                console.log('[useDashboardStats] Query returned:', expensesData?.length, 'items')
 
                 if (queryError) throw queryError
 
