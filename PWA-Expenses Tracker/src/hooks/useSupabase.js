@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase, demoData, isDemoMode } from '../lib/supabase'
 
 // Cache userId để tránh gọi Supabase nhiều lần
@@ -275,8 +275,15 @@ export const useCategories = () => {
 export const useExpenses = (filters = {}) => {
     const [expenses, setExpenses] = useState([])
     const [loading, setLoading] = useState(true)
+    const isFetchingRef = useRef(false)
 
     const fetchExpenses = useCallback(async () => {
+        // Fetch lock: Ngăn multiple concurrent fetches
+        if (isFetchingRef.current) {
+            console.log('[useExpenses] Fetch already in progress, skipping...')
+            return
+        }
+        isFetchingRef.current = true
         setLoading(true)
 
         // Parse sort option
@@ -429,6 +436,7 @@ export const useExpenses = (filters = {}) => {
             alert('Lỗi tải chi phí: ' + error.message)
         } finally {
             console.log('[useExpenses] Fetch COMPLETE - setting loading to false')
+            isFetchingRef.current = false  // Clear lock
             setLoading(false)
         }
     }, [filters.projectId, filters.categoryId, filters.categoryIds, filters.month, filters.startMonth, filters.endMonth, filters.search, filters.sortOption, filters.userId])
@@ -439,6 +447,7 @@ export const useExpenses = (filters = {}) => {
         // Safety timeout: Nếu loading quá 10 giây, force stop
         const safetyTimeout = setTimeout(() => {
             console.warn('[useExpenses] Safety timeout - forcing loading to false')
+            isFetchingRef.current = false  // Clear lock
             setLoading(false)
         }, 10000)
 
