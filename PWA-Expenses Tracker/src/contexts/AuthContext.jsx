@@ -81,11 +81,18 @@ export const AuthProvider = ({ children }) => {
         lastUserIdRef.current = userId
         lastFetchTimeRef.current = now
 
+        // Timeout với AbortController (10 giây)
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 10000)
+
         try {
-            // Simple await - no Promise.race (which was buggy with Supabase)
+            // Supabase với AbortSignal
             const { data, error } = await supabase
                 .rpc('get_my_profile', { user_id: userId })
+                .abortSignal(controller.signal)
                 .single()
+
+            clearTimeout(timeoutId)
 
             if (error) {
                 // Fallback: direct query if RPC doesn't exist
@@ -147,7 +154,15 @@ export const AuthProvider = ({ children }) => {
             setUserRole(data?.role || 'owner')
             cacheProfile(data, data?.role || 'owner')
         } catch (err) {
-            console.error('Error in fetchProfile:', err)
+            clearTimeout(timeoutId)
+
+            // Handle abort (timeout)
+            if (err.name === 'AbortError') {
+                console.warn('fetchProfile: Request timed out after 10s')
+            } else {
+                console.error('Error in fetchProfile:', err)
+            }
+
             // Use cached role or default to owner
             if (!userRoleRef.current) {
                 setUserRole('owner')
