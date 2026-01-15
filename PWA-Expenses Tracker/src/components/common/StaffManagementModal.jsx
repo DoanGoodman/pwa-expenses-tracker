@@ -101,31 +101,27 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
 
         setDeleting(staffId)
         try {
-            // Bước 1: Hủy liên kết với owner (luôn hoạt động)
-            const { error: unlinkError } = await supabase
-                .from('profiles')
-                .update({ parent_id: null })
-                .eq('id', staffId)
+            // Gọi RPC function (bypass RLS với SECURITY DEFINER)
+            const { data, error } = await supabase.rpc('disable_staff', {
+                p_staff_id: staffId,
+                p_owner_id: user.id
+            })
 
-            if (unlinkError) throw unlinkError
-
-            // Bước 2: Thử set is_active = false (có thể thất bại nếu cột chưa tồn tại)
-            try {
-                await supabase
-                    .from('profiles')
-                    .update({ is_active: false })
-                    .eq('id', staffId)
-            } catch (e) {
-                // Ignore - cột có thể chưa tồn tại
-                console.warn('is_active column may not exist:', e)
+            if (error) {
+                console.error('RPC error:', error)
+                throw new Error(error.message)
             }
 
-            // Cập nhật UI ngay lập tức (không cần đợi fetch)
+            if (data === false) {
+                throw new Error('Không có quyền xóa tài khoản này')
+            }
+
+            // Cập nhật UI ngay lập tức
             setStaffList(prev => prev.filter(s => s.id !== staffId))
             setSuccess(`Đã xóa tài khoản "${staffUsername}"`)
         } catch (err) {
             console.error('Error deleting staff:', err)
-            setError('Không thể xóa tài khoản. Vui lòng thử lại.')
+            setError(err.message || 'Không thể xóa tài khoản. Vui lòng thử lại.')
         } finally {
             setDeleting(null)
         }
