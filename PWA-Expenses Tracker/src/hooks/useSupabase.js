@@ -4,15 +4,21 @@ import { supabase, demoData, isDemoMode } from '../lib/supabase'
 // Cache userId để tránh gọi Supabase nhiều lần
 let cachedUserId = null
 
-// Helper function to get current user ID với cache
+// Helper function to get current user ID với cache và timeout
 // Sử dụng getSession() thay vì getUser() vì nhanh hơn
 const getCurrentUserId = async () => {
     // Return cached value nếu có
     if (cachedUserId) return cachedUserId
 
     try {
-        // Sử dụng getSession() - nhanh hơn getUser() vì không verify với server
-        const { data: { session }, error } = await supabase.auth.getSession()
+        // Timeout 5 giây cho getSession
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('getSession timeout')), 5000)
+        )
+
+        const sessionPromise = supabase.auth.getSession()
+
+        const { data: { session }, error } = await Promise.race([sessionPromise, timeoutPromise])
 
         if (error) {
             console.error('Error getting session:', error)
