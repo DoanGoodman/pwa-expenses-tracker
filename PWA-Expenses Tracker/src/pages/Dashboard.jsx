@@ -9,6 +9,7 @@ import CategoryChart from '../components/dashboard/CategoryChart'
 import PrivacySheet from '../components/dashboard/PrivacySheet'
 import { useProjects, useDashboardStats } from '../hooks/useSupabase'
 import { getCurrentMonth, getMonthsAgo } from '../utils/formatters'
+import { useAuth } from '../contexts/AuthContext'
 
 const Dashboard = () => {
     const [selectedProject, setSelectedProject] = useState('all')
@@ -16,11 +17,13 @@ const Dashboard = () => {
     const [endMonth, setEndMonth] = useState(getCurrentMonth())
     const [showPrivacy, setShowPrivacy] = useState(false)
 
+    const { user } = useAuth()
     const { projects } = useProjects()
     const { stats, loading } = useDashboardStats(
         startMonth,
         endMonth,
-        selectedProject !== 'all' ? selectedProject : null
+        selectedProject !== 'all' ? selectedProject : null,
+        user?.id  // Truyền userId để tránh gọi getCurrentUserId
     )
 
     return (
