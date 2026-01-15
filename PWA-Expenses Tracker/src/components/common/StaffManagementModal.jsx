@@ -95,26 +95,28 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
         }
     }
 
-    // Xóa tài khoản staff (chỉ xóa khỏi profiles, không xóa auth user)
+    // Xóa (vô hiệu hóa) tài khoản staff
     const handleDeleteStaff = async (staffId, staffUsername) => {
-        if (!confirm(`Bạn có chắc muốn xóa tài khoản "${staffUsername}"?`)) return
+        if (!confirm(`Bạn có chắc muốn vô hiệu hóa tài khoản "${staffUsername}"? Nhân viên này sẽ không thể đăng nhập được nữa.`)) return
 
         setDeleting(staffId)
         try {
-            // Lưu ý: Để xóa hoàn toàn cần Edge Function với admin API
-            // Hiện tại chỉ cập nhật để vô hiệu hóa
+            // Vô hiệu hóa tài khoản bằng cách set is_active = false
             const { error } = await supabase
                 .from('profiles')
-                .update({ parent_id: null }) // Hủy liên kết với owner
+                .update({
+                    is_active: false,
+                    parent_id: null // Cũng hủy liên kết với owner
+                })
                 .eq('id', staffId)
 
             if (error) throw error
 
-            setSuccess(`Đã xóa liên kết với "${staffUsername}"`)
+            setSuccess(`Đã vô hiệu hóa tài khoản "${staffUsername}"`)
             fetchStaffList()
         } catch (err) {
-            console.error('Error deleting staff:', err)
-            setError('Không thể xóa tài khoản. Vui lòng thử lại.')
+            console.error('Error disabling staff:', err)
+            setError('Không thể vô hiệu hóa tài khoản. Vui lòng thử lại.')
         } finally {
             setDeleting(null)
         }

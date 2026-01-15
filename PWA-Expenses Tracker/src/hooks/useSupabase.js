@@ -795,3 +795,68 @@ export const useBulkInsertExpenses = () => {
 
     return { bulkInsert, loading }
 }
+
+// Hook để check và track giới hạn upload (30 ảnh/ngày cho owner)
+export const useUploadLimit = () => {
+    const DAILY_LIMIT = 30
+
+    // Lấy số lượng upload hôm nay
+    const getTodayCount = async () => {
+        if (isDemoMode()) return 0
+
+        try {
+            const userId = await getCurrentUserId()
+            if (!userId) return 0
+
+            const { data, error } = await supabase.rpc('get_today_upload_count', {
+                p_owner_id: userId
+            })
+
+            if (error) {
+                console.error('Error getting upload count:', error)
+                return 0
+            }
+
+            return data || 0
+        } catch (error) {
+            console.error('Error in getTodayCount:', error)
+            return 0
+        }
+    }
+
+    // Check và increment upload count, trả về true nếu được phép upload
+    const checkAndIncrementUpload = async () => {
+        if (isDemoMode()) return { allowed: true, remaining: DAILY_LIMIT }
+
+        try {
+            const userId = await getCurrentUserId()
+            if (!userId) return { allowed: false, remaining: 0, error: 'Chưa đăng nhập' }
+
+            const { data, error } = await supabase.rpc('increment_upload_count', {
+                p_owner_id: userId,
+                p_limit: DAILY_LIMIT
+            })
+
+            if (error) {
+                console.error('Error checking upload limit:', error)
+                // Nếu function chưa tồn tại, cho phép upload (fallback)
+                if (error.code === 'PGRST202') {
+                    return { allowed: true, remaining: DAILY_LIMIT }
+                }
+                return { allowed: false, remaining: 0, error: error.message }
+            }
+
+            const result = data?.[0] || { allowed: true, remaining: DAILY_LIMIT }
+            return {
+                allowed: result.allowed,
+                currentCount: result.current_count,
+                remaining: result.remaining
+            }
+        } catch (error) {
+            console.error('Error in checkAndIncrementUpload:', error)
+            return { allowed: true, remaining: DAILY_LIMIT } // Fallback cho phép upload
+        }
+    }
+
+    return { getTodayCount, checkAndIncrementUpload, DAILY_LIMIT }
+}

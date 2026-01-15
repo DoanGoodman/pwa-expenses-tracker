@@ -97,6 +97,15 @@ export const AuthProvider = ({ children }) => {
             }
 
             setProfile(data)
+
+            // Check if account is disabled
+            if (data?.is_active === false) {
+                console.warn('Account is disabled, logging out...')
+                alert('Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.')
+                await supabase.auth.signOut()
+                return
+            }
+
             setUserRole(data?.role || 'owner')
             cacheProfile(data, data?.role || 'owner')
             console.log('userRole set to:', data?.role || 'owner')
