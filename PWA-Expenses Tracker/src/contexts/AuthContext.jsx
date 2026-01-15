@@ -327,26 +327,13 @@ export const AuthProvider = ({ children }) => {
             }
         )
 
-        // === VISIBILITY CHANGE HANDLER ===
-        // Chỉ fetch lại profile nếu đã cũ hơn 5 phút (stale-time)
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible') {
-                const currentUser = user
-                if (currentUser?.id) {
-                    console.log('[AuthContext] App resumed, checking if profile refresh needed...')
-                    // Gọi với flag fromVisibilityChange để áp dụng stale-time check
-                    fetchProfile(currentUser.id, { fromVisibilityChange: true })
-                }
-            }
-        }
-
-        // Sử dụng visibilitychange thay vì focus để tránh trigger quá nhiều
-        document.addEventListener('visibilitychange', handleVisibilityChange)
+        // Không cần visibility change handler
+        // Profile đã được cache trong localStorage và sẽ được load khi mount
+        // Visibility change có thể gây ra race conditions và infinite loops
 
         return () => {
             subscription.unsubscribe()
             clearTimeout(safetyTimeout)
-            document.removeEventListener('visibilitychange', handleVisibilityChange)
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
