@@ -100,6 +100,8 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
         if (!confirm(`Bạn có chắc muốn xóa tài khoản "${staffUsername}"? Nhân viên này sẽ không thể đăng nhập được nữa.`)) return
 
         setDeleting(staffId)
+        setError('') // Clear any previous errors
+
         try {
             // Gọi RPC function (bypass RLS với SECURITY DEFINER)
             const { data, error } = await supabase.rpc('disable_staff', {
@@ -112,7 +114,8 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
                 throw new Error(error.message)
             }
 
-            if (data === false) {
+            // RPC trả về boolean, check cả true và falsy
+            if (!data) {
                 throw new Error('Không có quyền xóa tài khoản này')
             }
 
@@ -122,9 +125,10 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
         } catch (err) {
             console.error('Error deleting staff:', err)
             setError(err.message || 'Không thể xóa tài khoản. Vui lòng thử lại.')
-        } finally {
-            setDeleting(null)
         }
+
+        // Always reset deleting state
+        setDeleting(null)
     }
 
     if (!isOpen) return null
