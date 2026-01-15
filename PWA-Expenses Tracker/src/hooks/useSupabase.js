@@ -332,8 +332,11 @@ export const useExpenses = (filters = {}) => {
         }
 
         try {
-            const userId = await getCurrentUserId()
+            // Use passed userId or fetch if missing
+            const userId = filters.userId || await getCurrentUserId()
+
             if (!userId) {
+                console.warn('useExpenses: No user ID found')
                 setExpenses([])
                 setLoading(false)
                 return
@@ -404,7 +407,7 @@ export const useExpenses = (filters = {}) => {
         } finally {
             setLoading(false)
         }
-    }, [filters.projectId, filters.categoryId, filters.categoryIds, filters.month, filters.startMonth, filters.endMonth, filters.search, filters.sortOption])
+    }, [filters.projectId, filters.categoryId, filters.categoryIds, filters.month, filters.startMonth, filters.endMonth, filters.search, filters.sortOption, filters.userId])
 
     useEffect(() => {
         fetchExpenses()

@@ -11,9 +11,12 @@ import { getCurrentMonth, getMonthsAgo } from '../utils/formatters'
 import { exportToExcel, exportToPDF } from '../utils/exportHelpers'
 import { X, CheckCircle } from 'lucide-react'
 
+import { useAuth } from '../contexts/AuthContext'
+
 const ExpenseList = () => {
     const location = useLocation()
     const navigate = useNavigate()
+    const { user } = useAuth()
 
     // Filter states
     const [selectedProject, setSelectedProject] = useState('all')
@@ -40,7 +43,8 @@ const ExpenseList = () => {
         startMonth,
         endMonth,
         search: searchText,
-        sortOption
+        sortOption,
+        userId: user?.id
     })
     const { deleteExpense } = useDeleteExpense()
     const { updateExpense, loading: updating } = useUpdateExpense()
