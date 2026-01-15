@@ -445,6 +445,22 @@ export const useExpenses = (filters = {}) => {
         return () => clearTimeout(safetyTimeout)
     }, [fetchExpenses])
 
+    // Visibility change handler: Refetch khi tab trở lại visible và không có data
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                // Nếu không có data và không đang loading, refetch
+                if (expenses.length === 0 && !loading && filters.userId) {
+                    console.log('[useExpenses] Tab visible, no data - refetching...')
+                    fetchExpenses()
+                }
+            }
+        }
+
+        document.addEventListener('visibilitychange', handleVisibilityChange)
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }, [expenses.length, loading, filters.userId, fetchExpenses])
+
     return { expenses, loading, refetch: fetchExpenses }
 }
 
@@ -789,6 +805,24 @@ export const useDashboardStats = (startMonth, endMonth, projectId = null, userId
 
         return () => clearTimeout(safetyTimeout)
     }, [startMonth, endMonth, projectId, userId])
+
+    // Visibility change handler: Refetch khi tab trở lại visible và không có data
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                // Nếu total = 0 và không đang loading và có userId, refetch
+                if (stats.total === 0 && !loading && userId) {
+                    console.log('[useDashboardStats] Tab visible, no data - will refetch on next render')
+                    // Trigger re-render to re-run calculateStats
+                    setLoading(true)
+                    setLoading(false)
+                }
+            }
+        }
+
+        document.addEventListener('visibilitychange', handleVisibilityChange)
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }, [stats.total, loading, userId])
 
     return { stats, loading }
 }
