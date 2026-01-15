@@ -797,19 +797,42 @@ export const useBulkInsertExpenses = () => {
 }
 
 // Hook để check và track giới hạn upload (30 ảnh/ngày cho owner)
+// Staff dùng chung quota với Owner (parent)
 export const useUploadLimit = () => {
     const DAILY_LIMIT = 30
 
-    // Lấy số lượng upload hôm nay
+    // Helper: Lấy owner_id (nếu là staff thì lấy parent_id)
+    const getOwnerIdForQuota = async () => {
+        const userId = await getCurrentUserId()
+        if (!userId) return null
+
+        // Check if user is staff with parent
+        const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('role, parent_id')
+            .eq('id', userId)
+            .single()
+
+        if (error || !profile) return userId
+
+        // Staff uses parent's quota
+        if (profile.role === 'staff' && profile.parent_id) {
+            return profile.parent_id
+        }
+
+        return userId
+    }
+
+    // Lấy số lượng upload hôm nay (của owner)
     const getTodayCount = async () => {
         if (isDemoMode()) return 0
 
         try {
-            const userId = await getCurrentUserId()
-            if (!userId) return 0
+            const ownerId = await getOwnerIdForQuota()
+            if (!ownerId) return 0
 
             const { data, error } = await supabase.rpc('get_today_upload_count', {
-                p_owner_id: userId
+                p_owner_id: ownerId
             })
 
             if (error) {
@@ -824,16 +847,16 @@ export const useUploadLimit = () => {
         }
     }
 
-    // Check và increment upload count, trả về true nếu được phép upload
+    // Check và increment upload count (dùng chung quota với owner)
     const checkAndIncrementUpload = async () => {
         if (isDemoMode()) return { allowed: true, remaining: DAILY_LIMIT }
 
         try {
-            const userId = await getCurrentUserId()
-            if (!userId) return { allowed: false, remaining: 0, error: 'Chưa đăng nhập' }
+            const ownerId = await getOwnerIdForQuota()
+            if (!ownerId) return { allowed: false, remaining: 0, error: 'Chưa đăng nhập' }
 
             const { data, error } = await supabase.rpc('increment_upload_count', {
-                p_owner_id: userId,
+                p_owner_id: ownerId,
                 p_limit: DAILY_LIMIT
             })
 

@@ -106,6 +106,22 @@ export const AuthProvider = ({ children }) => {
                 return
             }
 
+            // For Staff: Check if parent (owner) is also active
+            if (data?.role === 'staff' && data?.parent_id) {
+                const { data: parentData, error: parentError } = await supabase
+                    .from('profiles')
+                    .select('is_active')
+                    .eq('id', data.parent_id)
+                    .single()
+
+                if (!parentError && parentData?.is_active === false) {
+                    console.warn('Parent account is disabled, logging out staff...')
+                    alert('Tài khoản chủ sở hữu đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.')
+                    await supabase.auth.signOut()
+                    return
+                }
+            }
+
             setUserRole(data?.role || 'owner')
             cacheProfile(data, data?.role || 'owner')
             console.log('userRole set to:', data?.role || 'owner')
