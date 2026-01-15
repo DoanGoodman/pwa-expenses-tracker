@@ -344,14 +344,17 @@ export const useExpenses = (filters = {}) => {
             // Nếu userId không được truyền vào, đợi thay vì gọi getCurrentUserId (có thể treo)
             const userId = filters.userId
 
+            console.log('[useExpenses] Starting fetch with userId:', userId ? userId.substring(0, 8) + '...' : 'NONE')
+
             if (!userId) {
                 // Không có userId - component có thể đang đợi AuthContext load
-                // Không gọi getCurrentUserId ở đây vì nó có thể treo
-                console.log('[useExpenses] No userId provided, waiting for AuthContext...')
+                console.warn('[useExpenses] No userId - returning empty. This should only happen on initial mount.')
                 setExpenses([])
                 setLoading(false)
                 return
             }
+
+            console.log('[useExpenses] Building query...')
 
             // 1. Build query - RELY ON RLS, DO NOT FILTER BY USER_ID MANUALLY
             let query = supabase
@@ -410,15 +413,18 @@ export const useExpenses = (filters = {}) => {
                     category: categoriesMap.get(expense.category_id)
                 }))
 
+                console.log('[useExpenses] Fetch SUCCESS - setting', enriched.length, 'expenses')
                 setExpenses(enriched)
             } else {
+                console.log('[useExpenses] No expenses data returned')
                 setExpenses([])
             }
 
         } catch (error) {
-            console.error('Error fetching expenses:', error)
+            console.error('[useExpenses] Fetch ERROR:', error)
             alert('Lỗi tải chi phí: ' + error.message)
         } finally {
+            console.log('[useExpenses] Fetch COMPLETE - setting loading to false')
             setLoading(false)
         }
     }, [filters.projectId, filters.categoryId, filters.categoryIds, filters.month, filters.startMonth, filters.endMonth, filters.search, filters.sortOption, filters.userId])
@@ -664,12 +670,16 @@ export const useDashboardStats = (startMonth, endMonth, projectId = null, userId
             try {
                 // Không gọi getCurrentUserId() vì có thể treo
                 // Đợi userId được truyền từ AuthContext
+                console.log('[useDashboardStats] Starting fetch with userId:', userId ? userId.substring(0, 8) + '...' : 'NONE')
+
                 if (!userId) {
-                    console.log('[useDashboardStats] No userId provided, waiting for AuthContext...')
+                    console.warn('[useDashboardStats] No userId - returning empty stats')
                     setStats({ total: 0, byCategory: [], byMonth: [] })
                     setLoading(false)
                     return
                 }
+
+                console.log('[useDashboardStats] Building query...')
 
                 // Build query with filters
                 // Exclude soft-deleted items from dashboard stats
@@ -749,11 +759,13 @@ export const useDashboardStats = (startMonth, endMonth, projectId = null, userId
                     .map(([month, amount]) => ({ month, amount }))
                     .sort((a, b) => a.month.localeCompare(b.month))
 
+                console.log('[useDashboardStats] Fetch SUCCESS - total:', total, 'categories:', byCategory.length, 'months:', byMonth.length)
                 setStats({ total, byCategory, byMonth })
             } catch (error) {
-                console.error('Error calculating dashboard stats:', error)
+                console.error('[useDashboardStats] Fetch ERROR:', error)
                 alert('Lỗi tải thống kê: ' + error.message)
             } finally {
+                console.log('[useDashboardStats] Fetch COMPLETE - setting loading to false')
                 setLoading(false)
             }
         }
