@@ -5,30 +5,39 @@ import { supabase, demoData, isDemoMode } from '../lib/supabase'
 let cachedUserId = null
 
 // Helper function to get current user ID với cache và timeout
-// Sử dụng getSession() thay vì getUser() vì nhanh hơn
+// IMPORTANT: Trả về cached value NGAY LẬP TỨC nếu có
 const getCurrentUserId = async () => {
-    // Return cached value nếu có
-    if (cachedUserId) return cachedUserId
+    // Return cached value NGAY LẬP TỨC nếu có - không chờ gì cả
+    if (cachedUserId) {
+        console.log('[getCurrentUserId] Using cached userId:', cachedUserId.substring(0, 8) + '...')
+        return cachedUserId
+    }
+
+    console.log('[getCurrentUserId] No cache, attempting to get session...')
 
     try {
-        // Timeout 5 giây cho getSession
-        const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('getSession timeout')), 5000)
-        )
+        // Timeout 3 giây (giảm từ 5s) - nếu quá lâu thì trả về null
+        const timeoutPromise = new Promise((resolve) => {
+            setTimeout(() => {
+                console.warn('[getCurrentUserId] getSession timeout after 3s')
+                resolve({ data: { session: null }, error: new Error('timeout') })
+            }, 3000)
+        })
 
         const sessionPromise = supabase.auth.getSession()
 
-        const { data: { session }, error } = await Promise.race([sessionPromise, timeoutPromise])
+        const result = await Promise.race([sessionPromise, timeoutPromise])
 
-        if (error) {
-            console.error('Error getting session:', error)
+        if (result.error) {
+            console.error('[getCurrentUserId] Error:', result.error)
             return null
         }
 
-        cachedUserId = session?.user?.id || null
+        cachedUserId = result.data?.session?.user?.id || null
+        console.log('[getCurrentUserId] Got userId from session:', cachedUserId ? cachedUserId.substring(0, 8) + '...' : 'null')
         return cachedUserId
     } catch (error) {
-        console.error('Error getting user ID:', error)
+        console.error('[getCurrentUserId] Unexpected error:', error)
         return null
     }
 }
