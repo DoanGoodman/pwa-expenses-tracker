@@ -277,6 +277,25 @@ export const useExpenses = (filters = {}) => {
     const [loading, setLoading] = useState(true)
     const isFetchingRef = useRef(false)
 
+    // Cache key dựa trên userId (để mỗi user có cache riêng)
+    const cacheKey = filters.userId ? `expenses_cache_${filters.userId}` : null
+
+    // Load từ cache khi component mount
+    useEffect(() => {
+        if (cacheKey) {
+            try {
+                const cached = localStorage.getItem(cacheKey)
+                if (cached) {
+                    const parsed = JSON.parse(cached)
+                    console.log('[useExpenses] Loaded', parsed.length, 'items from cache')
+                    setExpenses(parsed)
+                }
+            } catch (e) {
+                console.warn('[useExpenses] Failed to load from cache:', e)
+            }
+        }
+    }, [cacheKey])
+
     const fetchExpenses = useCallback(async () => {
         // Fetch lock: Ngăn multiple concurrent fetches
         if (isFetchingRef.current) {
@@ -426,6 +445,15 @@ export const useExpenses = (filters = {}) => {
 
                 console.log('[useExpenses] Fetch SUCCESS - setting', enriched.length, 'expenses')
                 setExpenses(enriched)
+
+                // Save to cache
+                if (cacheKey) {
+                    try {
+                        localStorage.setItem(cacheKey, JSON.stringify(enriched))
+                    } catch (e) {
+                        console.warn('[useExpenses] Failed to save to cache:', e)
+                    }
+                }
             } else {
                 console.log('[useExpenses] No expenses data returned')
                 setExpenses([])
@@ -439,7 +467,7 @@ export const useExpenses = (filters = {}) => {
             isFetchingRef.current = false  // Clear lock
             setLoading(false)
         }
-    }, [filters.projectId, filters.categoryId, filters.categoryIds, filters.month, filters.startMonth, filters.endMonth, filters.search, filters.sortOption, filters.userId])
+    }, [filters.projectId, filters.categoryId, filters.categoryIds, filters.month, filters.startMonth, filters.endMonth, filters.search, filters.sortOption, filters.userId, cacheKey])
 
     useEffect(() => {
         fetchExpenses()
@@ -618,6 +646,25 @@ export const useDashboardStats = (startMonth, endMonth, projectId = null, userId
     })
     const [loading, setLoading] = useState(true)
 
+    // Cache key dựa trên userId và các filters
+    const cacheKey = userId ? `dashboard_stats_${userId}_${startMonth}_${endMonth}_${projectId || 'all'}` : null
+
+    // Load từ cache khi component mount
+    useEffect(() => {
+        if (cacheKey) {
+            try {
+                const cached = localStorage.getItem(cacheKey)
+                if (cached) {
+                    const parsed = JSON.parse(cached)
+                    console.log('[useDashboardStats] Loaded from cache - total:', parsed.total)
+                    setStats(parsed)
+                }
+            } catch (e) {
+                console.warn('[useDashboardStats] Failed to load from cache:', e)
+            }
+        }
+    }, [cacheKey])
+
     useEffect(() => {
         const calculateStats = async () => {
             setLoading(true)
@@ -781,10 +828,20 @@ export const useDashboardStats = (startMonth, endMonth, projectId = null, userId
                     .sort((a, b) => a.month.localeCompare(b.month))
 
                 console.log('[useDashboardStats] Fetch SUCCESS - total:', total, 'categories:', byCategory.length, 'months:', byMonth.length)
-                setStats({ total, byCategory, byMonth })
+                const newStats = { total, byCategory, byMonth }
+                setStats(newStats)
+
+                // Save to cache
+                if (cacheKey) {
+                    try {
+                        localStorage.setItem(cacheKey, JSON.stringify(newStats))
+                    } catch (e) {
+                        console.warn('[useDashboardStats] Failed to save to cache:', e)
+                    }
+                }
             } catch (error) {
                 console.error('[useDashboardStats] Fetch ERROR:', error)
-                alert('Lỗi tải thống kê: ' + error.message)
+                // KHÔNG dùng alert() vì có thể gây infinite loop
             } finally {
                 console.log('[useDashboardStats] Fetch COMPLETE - setting loading to false')
                 setLoading(false)
