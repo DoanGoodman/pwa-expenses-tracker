@@ -589,22 +589,32 @@ export const useExpenses = (filters = {}) => {
     useEffect(() => {
         fetchExpenses()
 
-        // Safety timeout: Sau 15 giây, clear fetch lock để cho phép retry
-        // Chỉ set loading=false nếu CHƯA có data (tránh spinner khi đã có cache)
+        // Safety timeout: Sau 15 giây, clear fetch lock và retry 1 lần
         const safetyTimeout = setTimeout(() => {
             if (isFetchingRef.current) {
-                console.warn('[useExpenses] Safety timeout - clearing fetch lock')
+                console.warn('[useExpenses] Safety timeout - clearing fetch lock, will retry')
                 isFetchingRef.current = false
 
-                // Chỉ set loading=false nếu chưa có data
-                if (!hasDataRef.current) {
-                    console.warn('[useExpenses] No cached data - setting loading to false')
-                    setLoading(false)
-                }
+                // Retry fetch 1 lần
+                fetchExpenses()
             }
         }, 15000)
 
-        return () => clearTimeout(safetyTimeout)
+        // Lần retry cũng có timeout riêng (30 giây tổng)
+        const finalTimeout = setTimeout(() => {
+            if (isFetchingRef.current) {
+                console.warn('[useExpenses] Final timeout - giving up')
+                isFetchingRef.current = false
+                if (!hasDataRef.current) {
+                    setLoading(false)
+                }
+            }
+        }, 30000)
+
+        return () => {
+            clearTimeout(safetyTimeout)
+            clearTimeout(finalTimeout)
+        }
     }, [fetchExpenses])
 
     // NOTE: Đã xóa visibility change handler vì gây infinite loop
