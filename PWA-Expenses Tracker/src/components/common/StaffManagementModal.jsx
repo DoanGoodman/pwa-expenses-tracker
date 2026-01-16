@@ -29,7 +29,7 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
     const MAX_STAFF_ACCOUNTS = 3
     const canCreateMore = staffList.length < MAX_STAFF_ACCOUNTS
 
-    // Fetch danh sách staff
+    // Fetch danh sách staff với timeout
     const fetchStaffList = async () => {
         if (!user) {
             setLoading(false)
@@ -37,19 +37,39 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
         }
 
         setLoading(true)
+        setError('')
+
+        // Timeout sau 10 giây
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 10000)
+
         try {
+            console.log('[StaffManagement] Fetching staff for owner:', user.id)
+
             const { data, error } = await supabase
                 .from('profiles')
                 .select('id, username, email, created_at')
                 .eq('parent_id', user.id)
                 .eq('role', 'staff')
                 .order('created_at', { ascending: false })
+                .abortSignal(controller.signal)
+
+            clearTimeout(timeoutId)
 
             if (error) throw error
+
+            console.log('[StaffManagement] Found', data?.length || 0, 'staff members')
             setStaffList(data || [])
         } catch (err) {
-            console.error('Error fetching staff:', err)
-            setError('Không thể tải danh sách nhân viên')
+            clearTimeout(timeoutId)
+
+            if (err.name === 'AbortError') {
+                console.warn('[StaffManagement] Fetch timeout')
+                setError('Tải dữ liệu quá lâu. Vui lòng thử lại.')
+            } else {
+                console.error('[StaffManagement] Error fetching staff:', err)
+                setError('Không thể tải danh sách nhân viên: ' + (err.message || 'Unknown error'))
+            }
         } finally {
             setLoading(false)
         }
