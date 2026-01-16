@@ -184,18 +184,20 @@ export const AuthProvider = ({ children }) => {
                     return
                 }
 
-                // Check if parent (owner) is also active
-                const { data: parentData, error: parentError } = await supabase
-                    .from('profiles')
-                    .select('is_active')
-                    .eq('id', data.parent_id)
-                    .single()
+                // Check if parent (owner) is also active using RPC function (bypasses RLS)
+                try {
+                    const { data: isActive, error: rpcError } = await supabase
+                        .rpc('check_parent_is_active')
 
-                if (!parentError && parentData?.is_active === false) {
-                    console.warn('Parent account is disabled, logging out staff...')
-                    alert('Tài khoản chủ sở hữu đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.')
-                    await supabase.auth.signOut()
-                    return
+                    if (!rpcError && isActive === false) {
+                        console.warn('Parent account is disabled, logging out staff...')
+                        alert('Tài khoản chủ sở hữu đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.')
+                        await supabase.auth.signOut()
+                        return
+                    }
+                } catch (rpcErr) {
+                    // If function doesn't exist yet, skip check
+                    console.warn('check_parent_is_active RPC failed, skipping check:', rpcErr.message)
                 }
             }
 
