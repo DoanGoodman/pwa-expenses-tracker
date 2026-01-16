@@ -87,6 +87,10 @@ export const AuthProvider = ({ children }) => {
         if (fromVisibilityChange && !forceRefresh) {
             if (lastUserIdRef.current === userId && now - lastFetchTimeRef.current < staleTimeMs) {
                 console.log('[AuthContext] Profile still fresh, skipping fetch on visibility change')
+                // Đảm bảo userRole có giá trị nếu skip
+                if (!userRoleRef.current) {
+                    setUserRole('owner')
+                }
                 return
             }
         }
@@ -94,6 +98,10 @@ export const AuthProvider = ({ children }) => {
         // === GUARD 2: Short debounce (2 giây) để tránh spam ===
         if (lastUserIdRef.current === userId && now - lastFetchTimeRef.current < 2000 && !forceRefresh) {
             console.log('[AuthContext] Debounce: Too soon since last fetch')
+            // Đảm bảo userRole có giá trị nếu skip
+            if (!userRoleRef.current) {
+                setUserRole('owner')
+            }
             return
         }
 
@@ -279,10 +287,18 @@ export const AuthProvider = ({ children }) => {
 
                     if (hasCachedProfile && userRole) {
                         // Cache hợp lệ - set loading false ngay lập tức
+                        console.log('[AuthContext] Using cached profile, role:', userRole)
                         setLoading(false)
                     } else {
                         // Không có cache - fetch profile
                         await fetchProfile(currentUser.id)
+
+                        // Đảm bảo userRole có giá trị sau fetchProfile
+                        // (Trong trường hợp fetchProfile bị skip hoặc fail)
+                        if (!userRoleRef.current) {
+                            console.log('[AuthContext] userRole still null after fetchProfile, defaulting to owner')
+                            setUserRole('owner')
+                        }
                     }
                 }
             } catch (err) {
