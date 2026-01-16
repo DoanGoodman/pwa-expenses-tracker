@@ -58,6 +58,7 @@ const MonthlyBarChart = ({ data }) => {
                         dataKey="amount"
                         radius={[6, 6, 0, 0]}
                         maxBarSize={40}
+                        isAnimationActive={false}
                     >
                         {chartData.map((entry, index) => (
                             <Cell

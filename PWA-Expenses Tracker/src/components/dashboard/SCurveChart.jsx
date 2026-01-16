@@ -79,6 +79,7 @@ const SCurveChart = ({ data }) => {
                         fill="url(#areaGradient)"
                         dot={{ r: 4, fill: '#00a99d', strokeWidth: 2, stroke: '#fff' }}
                         activeDot={{ r: 6, fill: '#00a99d', strokeWidth: 2, stroke: '#fff' }}
+                        isAnimationActive={false}
                     />
                 </AreaChart>
             </ResponsiveContainer>
