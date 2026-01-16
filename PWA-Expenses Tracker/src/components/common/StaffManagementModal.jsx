@@ -59,9 +59,12 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
         setLoading(true)
         setError('')
 
-        // Timeout sau 10 giây
+        // Timeout sau 20 giây (đủ lâu cho Supabase cold start)
         const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 10000)
+        const timeoutId = setTimeout(() => {
+            console.warn('[StaffManagement] Timeout reached, aborting...')
+            controller.abort()
+        }, 20000)
 
         try {
             console.log('[StaffManagement] Fetching staff for owner:', userId)
@@ -81,17 +84,20 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
             console.log('[StaffManagement] Found', data?.length || 0, 'staff members')
             setStaffList(data || [])
             lastFetchUserIdRef.current = userId
+            setError('') // Clear any previous errors
         } catch (err) {
             clearTimeout(timeoutId)
+            console.error('[StaffManagement] Catch error:', err.name, err.message)
 
             if (err.name === 'AbortError') {
                 console.warn('[StaffManagement] Fetch timeout')
-                setError('Tải dữ liệu quá lâu. Vui lòng thử lại.')
+                setError('Tải dữ liệu quá lâu. Nhấn "Thử lại" để tải lại.')
             } else {
                 console.error('[StaffManagement] Error fetching staff:', err)
-                setError('Không thể tải danh sách nhân viên: ' + (err.message || 'Unknown error'))
+                setError('Không thể tải: ' + (err.message || 'Lỗi kết nối'))
             }
         } finally {
+            console.log('[StaffManagement] Finally block - resetting states')
             isFetchingRef.current = false
             setLoading(false)
         }
@@ -204,9 +210,17 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
                     <div className="p-4 overflow-y-auto max-h-[calc(90vh-140px)]">
                         {/* Error/Success Messages */}
                         {error && (
-                            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-red-600 text-sm">
-                                <AlertCircle className="w-4 h-4 shrink-0" />
-                                {error}
+                            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between text-red-600 text-sm">
+                                <div className="flex items-center gap-2">
+                                    <AlertCircle className="w-4 h-4 shrink-0" />
+                                    <span>{error}</span>
+                                </div>
+                                <button
+                                    onClick={() => fetchStaffList(true)}
+                                    className="px-3 py-1 bg-red-100 hover:bg-red-200 rounded-lg text-xs font-medium transition-colors"
+                                >
+                                    Thử lại
+                                </button>
                             </div>
                         )}
                         {success && (
