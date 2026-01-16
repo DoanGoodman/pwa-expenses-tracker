@@ -276,6 +276,7 @@ export const useExpenses = (filters = {}) => {
     const [expenses, setExpenses] = useState([])
     const [loading, setLoading] = useState(true)
     const isFetchingRef = useRef(false)
+    const hasDataRef = useRef(false)  // Track nếu đã có data
 
     // Cache key dựa trên userId (để mỗi user có cache riêng)
     const cacheKey = filters.userId ? `expenses_cache_${filters.userId}` : null
@@ -289,6 +290,7 @@ export const useExpenses = (filters = {}) => {
                     const parsed = JSON.parse(cached)
                     console.log('[useExpenses] Loaded', parsed.length, 'items from cache')
                     setExpenses(parsed)
+                    hasDataRef.current = true  // Mark có data
                     setLoading(false)  // ← Hiển thị data ngay, không đợi network
                 }
             } catch (e) {
@@ -304,7 +306,12 @@ export const useExpenses = (filters = {}) => {
             return
         }
         isFetchingRef.current = true
-        setLoading(true)
+
+        // Chỉ show loading spinner nếu chưa có data (first load)
+        // Nếu đã có cached data, fetch chạy ngầm (background refresh)
+        if (!hasDataRef.current) {
+            setLoading(true)
+        }
 
         // Parse sort option
         const sortOption = filters.sortOption || 'date_desc'
@@ -446,6 +453,7 @@ export const useExpenses = (filters = {}) => {
 
                 console.log('[useExpenses] Fetch SUCCESS - setting', enriched.length, 'expenses')
                 setExpenses(enriched)
+                hasDataRef.current = true  // Mark có data
 
                 // Save to cache
                 if (cacheKey) {
@@ -646,6 +654,7 @@ export const useDashboardStats = (startMonth, endMonth, projectId = null, userId
         byMonth: []
     })
     const [loading, setLoading] = useState(true)
+    const hasDataRef = useRef(false)  // Track nếu đã có data
 
     // Cache key dựa trên userId và các filters
     const cacheKey = userId ? `dashboard_stats_${userId}_${startMonth}_${endMonth}_${projectId || 'all'}` : null
@@ -659,6 +668,7 @@ export const useDashboardStats = (startMonth, endMonth, projectId = null, userId
                     const parsed = JSON.parse(cached)
                     console.log('[useDashboardStats] Loaded from cache - total:', parsed.total)
                     setStats(parsed)
+                    hasDataRef.current = true  // Mark có data
                     setLoading(false)  // ← Hiển thị data ngay, không đợi network
                 }
             } catch (e) {
@@ -669,7 +679,10 @@ export const useDashboardStats = (startMonth, endMonth, projectId = null, userId
 
     useEffect(() => {
         const calculateStats = async () => {
-            setLoading(true)
+            // Chỉ show loading spinner nếu chưa có data (first load)
+            if (!hasDataRef.current) {
+                setLoading(true)
+            }
 
             if (isDemoMode()) {
                 let filtered = demoData.expenses
@@ -832,6 +845,7 @@ export const useDashboardStats = (startMonth, endMonth, projectId = null, userId
                 console.log('[useDashboardStats] Fetch SUCCESS - total:', total, 'categories:', byCategory.length, 'months:', byMonth.length)
                 const newStats = { total, byCategory, byMonth }
                 setStats(newStats)
+                hasDataRef.current = true  // Mark có data
 
                 // Save to cache
                 if (cacheKey) {
