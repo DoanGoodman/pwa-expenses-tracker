@@ -45,23 +45,18 @@ const setCachedStaff = (ownerId, data) => {
 const StaffManagementModal = ({ isOpen, onClose }) => {
     const { user } = useAuth()
 
-    // Load từ cache ngay lập tức
-    const [staffList, setStaffList] = useState(() => {
-        if (typeof window !== 'undefined' && user?.id) {
-            return getCachedStaff(user.id) || []
-        }
-        return []
-    })
-    const [loading, setLoading] = useState(true)
+    // State
+    const [staffList, setStaffList] = useState([])
+    const [loading, setLoading] = useState(false) // Bắt đầu với false
     const [creating, setCreating] = useState(false)
     const [deleting, setDeleting] = useState(null)
     const [error, setError] = useState('')
     const [success, setSuccess] = useState('')
+    const [hasCacheLoaded, setHasCacheLoaded] = useState(false)
 
     // Refs để ngăn duplicate fetch
     const isFetchingRef = useRef(false)
     const lastFetchUserIdRef = useRef(null)
-    const hasLoadedCacheRef = useRef(false)
 
     // Assignment State
     const [assigningStaff, setAssigningStaff] = useState(null)
@@ -75,18 +70,21 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
     const MAX_STAFF_ACCOUNTS = 3
     const canCreateMore = staffList.length < MAX_STAFF_ACCOUNTS
 
-    // Load cache khi user thay đổi
+    // Load cache ngay khi modal mở và user available
     useEffect(() => {
-        if (user?.id && !hasLoadedCacheRef.current) {
+        if (isOpen && user?.id && !hasCacheLoaded) {
             const cached = getCachedStaff(user.id)
             if (cached && cached.length > 0) {
                 console.log('[StaffManagement] Loaded', cached.length, 'staff from cache')
                 setStaffList(cached)
-                setLoading(false) // Có cache → không cần loading
-                hasLoadedCacheRef.current = true
+                setHasCacheLoaded(true)
+                // KHÔNG set loading = true vì đã có data
+            } else {
+                // Không có cache, cần loading
+                setLoading(true)
             }
         }
-    }, [user?.id])
+    }, [isOpen, user?.id, hasCacheLoaded])
 
     // Fetch danh sách staff với timeout và lock
     const fetchStaffList = useCallback(async (forceRefresh = false) => {
@@ -111,7 +109,10 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
         }
 
         isFetchingRef.current = true
-        setLoading(true)
+        // Chỉ show loading nếu chưa có data (tránh flash)
+        if (staffList.length === 0) {
+            setLoading(true)
+        }
         setError('')
 
         // Timeout sau 20 giây (đủ lâu cho Supabase cold start)
@@ -394,9 +395,14 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
                             <h3 className="font-medium text-slate-700 mb-3 flex items-center gap-2">
                                 <Users className="w-4 h-4" />
                                 Danh sách nhân viên ({staffList.length})
+                                {/* Show small spinner if loading but have cached data */}
+                                {loading && staffList.length > 0 && (
+                                    <Loader2 className="w-4 h-4 text-indigo-400 animate-spin" />
+                                )}
                             </h3>
 
-                            {loading ? (
+                            {/* Only show full loading if no data at all */}
+                            {loading && staffList.length === 0 ? (
                                 <div className="flex items-center justify-center py-8">
                                     <Loader2 className="w-6 h-6 text-indigo-600 animate-spin" />
                                 </div>
