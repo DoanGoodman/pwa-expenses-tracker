@@ -22,7 +22,7 @@ const CategoryChart = ({ data }) => {
             </h3>
             <div className="space-y-4">
                 {data.map((item, index) => (
-                    <div key={item.id} className="animate-fade-in">
+                    <div key={item.id}>
                         <div className="flex items-center justify-between mb-1.5">
                             <div className="flex items-center gap-2">
                                 {/* SVG Icon based on category name */}
