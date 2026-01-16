@@ -143,7 +143,19 @@ export const useProjects = () => {
 
     useEffect(() => {
         fetchProjects()
-        // Không cần safety timeout vì đã có cache và hasDataRef
+
+        // Safety timeout: Clear fetch lock sau 15 giây
+        const safetyTimeout = setTimeout(() => {
+            if (isFetchingRef.current) {
+                console.warn('[useProjects] Safety timeout - clearing fetch lock')
+                isFetchingRef.current = false
+                if (!hasDataRef.current) {
+                    setLoading(false)
+                }
+            }
+        }, 15000)
+
+        return () => clearTimeout(safetyTimeout)
     }, [fetchProjects])
 
     const addProject = async (projectData) => {
@@ -348,7 +360,19 @@ export const useCategories = () => {
         }
 
         fetchCategories()
-        // Không cần safety timeout vì đã có cache
+
+        // Safety timeout: Clear fetch lock sau 15 giây
+        const safetyTimeout = setTimeout(() => {
+            if (isFetchingRef.current) {
+                console.warn('[useCategories] Safety timeout - clearing fetch lock')
+                isFetchingRef.current = false
+                if (!hasDataRef.current) {
+                    setLoading(false)
+                }
+            }
+        }, 15000)
+
+        return () => clearTimeout(safetyTimeout)
     }, [])
 
     return { categories, loading }
@@ -564,7 +588,23 @@ export const useExpenses = (filters = {}) => {
 
     useEffect(() => {
         fetchExpenses()
-        // Không cần safety timeout vì đã có cache và hasDataRef
+
+        // Safety timeout: Sau 15 giây, clear fetch lock để cho phép retry
+        // Chỉ set loading=false nếu CHƯA có data (tránh spinner khi đã có cache)
+        const safetyTimeout = setTimeout(() => {
+            if (isFetchingRef.current) {
+                console.warn('[useExpenses] Safety timeout - clearing fetch lock')
+                isFetchingRef.current = false
+
+                // Chỉ set loading=false nếu chưa có data
+                if (!hasDataRef.current) {
+                    console.warn('[useExpenses] No cached data - setting loading to false')
+                    setLoading(false)
+                }
+            }
+        }, 15000)
+
+        return () => clearTimeout(safetyTimeout)
     }, [fetchExpenses])
 
     // NOTE: Đã xóa visibility change handler vì gây infinite loop
