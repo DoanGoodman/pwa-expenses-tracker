@@ -1,8 +1,42 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { X, UserPlus, Users, Trash2, Loader2, AlertCircle, Briefcase } from 'lucide-react'
+import { X, UserPlus, Users, Trash2, Loader2, AlertCircle, Briefcase, RefreshCw } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import ProjectAssignmentModal from './ProjectAssignmentModal'
+
+// Cache key for staff list
+const STAFF_CACHE_KEY = 'cached_staff_list'
+const STAFF_CACHE_EXPIRY = 5 * 60 * 1000 // 5 minutes
+
+// Cache helpers
+const getCachedStaff = (ownerId) => {
+    try {
+        const cached = localStorage.getItem(STAFF_CACHE_KEY)
+        if (!cached) return null
+
+        const { data, ownerId: cachedOwnerId, timestamp } = JSON.parse(cached)
+
+        // Check if cache is for same owner and not expired
+        if (cachedOwnerId === ownerId && Date.now() - timestamp < STAFF_CACHE_EXPIRY) {
+            return data
+        }
+        return null
+    } catch {
+        return null
+    }
+}
+
+const setCachedStaff = (ownerId, data) => {
+    try {
+        localStorage.setItem(STAFF_CACHE_KEY, JSON.stringify({
+            data,
+            ownerId,
+            timestamp: Date.now()
+        }))
+    } catch (e) {
+        console.warn('Failed to cache staff list:', e)
+    }
+}
 
 /**
  * Modal quản lý tài khoản nhân viên
@@ -10,7 +44,14 @@ import ProjectAssignmentModal from './ProjectAssignmentModal'
  */
 const StaffManagementModal = ({ isOpen, onClose }) => {
     const { user } = useAuth()
-    const [staffList, setStaffList] = useState([])
+
+    // Load từ cache ngay lập tức
+    const [staffList, setStaffList] = useState(() => {
+        if (typeof window !== 'undefined' && user?.id) {
+            return getCachedStaff(user.id) || []
+        }
+        return []
+    })
     const [loading, setLoading] = useState(true)
     const [creating, setCreating] = useState(false)
     const [deleting, setDeleting] = useState(null)
@@ -20,6 +61,7 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
     // Refs để ngăn duplicate fetch
     const isFetchingRef = useRef(false)
     const lastFetchUserIdRef = useRef(null)
+    const hasLoadedCacheRef = useRef(false)
 
     // Assignment State
     const [assigningStaff, setAssigningStaff] = useState(null)
@@ -32,6 +74,19 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
     // Giới hạn tối đa tài khoản con
     const MAX_STAFF_ACCOUNTS = 3
     const canCreateMore = staffList.length < MAX_STAFF_ACCOUNTS
+
+    // Load cache khi user thay đổi
+    useEffect(() => {
+        if (user?.id && !hasLoadedCacheRef.current) {
+            const cached = getCachedStaff(user.id)
+            if (cached && cached.length > 0) {
+                console.log('[StaffManagement] Loaded', cached.length, 'staff from cache')
+                setStaffList(cached)
+                setLoading(false) // Có cache → không cần loading
+                hasLoadedCacheRef.current = true
+            }
+        }
+    }, [user?.id])
 
     // Fetch danh sách staff với timeout và lock
     const fetchStaffList = useCallback(async (forceRefresh = false) => {
@@ -85,16 +140,24 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
             setStaffList(data || [])
             lastFetchUserIdRef.current = userId
             setError('') // Clear any previous errors
+
+            // Save to cache
+            setCachedStaff(userId, data || [])
         } catch (err) {
             clearTimeout(timeoutId)
             console.error('[StaffManagement] Catch error:', err.name, err.message)
 
             if (err.name === 'AbortError') {
                 console.warn('[StaffManagement] Fetch timeout')
-                setError('Tải dữ liệu quá lâu. Nhấn "Thử lại" để tải lại.')
+                // Chỉ hiển thị error nếu không có cached data
+                if (staffList.length === 0) {
+                    setError('Tải dữ liệu quá lâu. Nhấn "Thử lại" để tải lại.')
+                }
             } else {
                 console.error('[StaffManagement] Error fetching staff:', err)
-                setError('Không thể tải: ' + (err.message || 'Lỗi kết nối'))
+                if (staffList.length === 0) {
+                    setError('Không thể tải: ' + (err.message || 'Lỗi kết nối'))
+                }
             }
         } finally {
             console.log('[StaffManagement] Finally block - resetting states')
@@ -173,7 +236,12 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
             }
 
             // Cập nhật UI ngay lập tức
-            setStaffList(prev => prev.filter(s => s.id !== staffId))
+            setStaffList(prev => {
+                const newList = prev.filter(s => s.id !== staffId)
+                // Update cache
+                setCachedStaff(user.id, newList)
+                return newList
+            })
             setSuccess(`Đã xóa tài khoản "${staffUsername}"`)
         } catch (err) {
             console.error('Error deleting staff:', err)
