@@ -289,6 +289,7 @@ export const useExpenses = (filters = {}) => {
                     const parsed = JSON.parse(cached)
                     console.log('[useExpenses] Loaded', parsed.length, 'items from cache')
                     setExpenses(parsed)
+                    setLoading(false)  // ← Hiển thị data ngay, không đợi network
                 }
             } catch (e) {
                 console.warn('[useExpenses] Failed to load from cache:', e)
@@ -658,6 +659,7 @@ export const useDashboardStats = (startMonth, endMonth, projectId = null, userId
                     const parsed = JSON.parse(cached)
                     console.log('[useDashboardStats] Loaded from cache - total:', parsed.total)
                     setStats(parsed)
+                    setLoading(false)  // ← Hiển thị data ngay, không đợi network
                 }
             } catch (e) {
                 console.warn('[useDashboardStats] Failed to load from cache:', e)
