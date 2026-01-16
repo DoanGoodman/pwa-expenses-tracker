@@ -5,29 +5,8 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-// Global visibility change handler
-// Khi tab hidden quá lâu, các Supabase fetch promises có thể bị stuck
-// Chỉ log warning, để user tự refresh nếu cần (tránh infinite loop)
-if (typeof document !== 'undefined') {
-    let lastVisibilityCheck = Date.now()
-
-    document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') {
-            const now = Date.now()
-            const hiddenDuration = now - lastVisibilityCheck
-
-            // Chỉ log warning nếu hidden quá 10 giây
-            // KHÔNG auto-reload hoặc auto-refetch vì có thể gây infinite loop
-            if (hiddenDuration > 10000) {
-                console.warn('[Supabase] Tab was hidden for', Math.round(hiddenDuration / 1000), 's - data may be stale. User can pull-to-refresh or reload page if needed.')
-            }
-
-            lastVisibilityCheck = now
-        } else {
-            lastVisibilityCheck = Date.now()
-        }
-    })
-}
+// Note: Visibility change handling được thực hiện trong AuthContext
+// Không cần xử lý ở đây nữa vì đã có localStorage cache cho data
 
 // Demo data for development
 export const demoData = {
