@@ -13,9 +13,16 @@ import ResetPassword from './pages/ResetPassword'
 
 // Component bảo vệ route chỉ dành cho Owner
 const OwnerRoute = ({ children }) => {
-  const { isStaff, loading } = useAuth()
+  const { isStaff, loading, userRole } = useAuth()
 
-  if (loading) return null
+  // Đợi loading xong VÀ userRole được xác định
+  if (loading || userRole === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   // Redirect staff về trang chi phí
   if (isStaff) {
