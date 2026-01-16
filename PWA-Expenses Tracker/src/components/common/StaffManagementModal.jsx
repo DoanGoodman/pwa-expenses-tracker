@@ -118,8 +118,11 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
         // Timeout sau 20 giây (đủ lâu cho Supabase cold start)
         const controller = new AbortController()
         const timeoutId = setTimeout(() => {
-            console.warn('[StaffManagement] Timeout reached, aborting...')
+            console.warn('[StaffManagement] Timeout reached, force cleanup')
             controller.abort()
+            // Force cleanup vì AbortController không phải lúc nào cũng trigger catch
+            isFetchingRef.current = false
+            setLoading(false)
         }, 20000)
 
         try {
