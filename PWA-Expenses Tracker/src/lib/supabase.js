@@ -3,7 +3,58 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co'
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key'
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Supabase client với optimized config
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        // Storage key để không conflict với các storage khác
+        storageKey: 'qswings-auth-token',
+    },
+    // Disable realtime để giảm connection overhead
+    realtime: {
+        params: {
+            eventsPerSecond: 1,
+        },
+    },
+    global: {
+        // Shorter fetch timeout (10s thay vì unlimited)
+        fetch: (url, options = {}) => {
+            return fetch(url, {
+                ...options,
+                // 10 second timeout for all requests
+                signal: AbortSignal.timeout ? AbortSignal.timeout(10000) : options.signal,
+            })
+        },
+    },
+})
+
+/**
+ * Warm-up ping - Gọi một request rất nhẹ để "đánh thức" Supabase connection
+ * Call this early in app initialization
+ */
+export const warmUpSupabase = async () => {
+    try {
+        const start = Date.now()
+        // Lightweight health check - just checks auth status, no DB query
+        await supabase.auth.getSession()
+        const elapsed = Date.now() - start
+        console.log(`[Supabase] Warm-up completed in ${elapsed}ms`)
+        return true
+    } catch (error) {
+        console.warn('[Supabase] Warm-up failed:', error.message)
+        return false
+    }
+}
+
+// Auto warm-up khi module được import (chạy song song với app load)
+if (typeof window !== 'undefined') {
+    // Defer warm-up để không block initial render
+    setTimeout(() => {
+        warmUpSupabase()
+    }, 100)
+}
 
 // Note: Visibility change handling được thực hiện trong AuthContext
 // Không cần xử lý ở đây nữa vì đã có localStorage cache cho data
