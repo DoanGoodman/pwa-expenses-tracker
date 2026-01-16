@@ -16,13 +16,15 @@ CREATE INDEX IF NOT EXISTS idx_expenses_user_id ON public.expenses(user_id);
 CREATE INDEX IF NOT EXISTS idx_expenses_project_id ON public.expenses(project_id);
 
 -- Composite index for common expense queries (project + date range)
-CREATE INDEX IF NOT EXISTS idx_expenses_project_date ON public.expenses(project_id, expense_date DESC);
+-- Note: 'date' is the column name in expenses table
+CREATE INDEX IF NOT EXISTS idx_expenses_project_date ON public.expenses(project_id, date DESC);
 
 -- Composite index for user + deleted filter (soft delete pattern)
 CREATE INDEX IF NOT EXISTS idx_expenses_user_deleted ON public.expenses(user_id, deleted_at);
 
--- Index for profiles.user_id (used in role checks)
-CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON public.profiles(user_id);
+-- Index for profiles.id (profiles.id = auth.uid())
+-- Note: profiles uses 'id' not 'user_id' as the primary key linked to auth
+CREATE INDEX IF NOT EXISTS idx_profiles_id ON public.profiles(id);
 
 -- Index for profiles.parent_id (used in staff hierarchy)
 CREATE INDEX IF NOT EXISTS idx_profiles_parent_id ON public.profiles(parent_id);
