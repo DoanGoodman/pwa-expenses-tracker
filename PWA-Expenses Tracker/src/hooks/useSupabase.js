@@ -948,13 +948,19 @@ export const useDashboardStats = (startMonth, endMonth, projectId = null, userId
 
                 console.log('[useDashboardStats] Fetch SUCCESS - total:', total, 'categories:', byCategory.length, 'months:', byMonth.length)
                 const newStats = { total, byCategory, byMonth }
-                setStats(newStats)
+
+                // Chỉ update nếu data thực sự khác (tránh re-render gây giật)
+                const newStatsStr = JSON.stringify(newStats)
+                const currentStatsStr = JSON.stringify(stats)
+                if (newStatsStr !== currentStatsStr) {
+                    setStats(newStats)
+                }
                 hasDataRef.current = true  // Mark có data
 
                 // Save to cache
                 if (cacheKey) {
                     try {
-                        localStorage.setItem(cacheKey, JSON.stringify(newStats))
+                        localStorage.setItem(cacheKey, newStatsStr)
                     } catch (e) {
                         console.warn('[useDashboardStats] Failed to save to cache:', e)
                     }
