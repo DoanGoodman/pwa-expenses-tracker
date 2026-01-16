@@ -7,35 +7,19 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // Global visibility change handler
 // Khi tab hidden quá lâu, các Supabase fetch promises có thể bị stuck
-// Giải pháp: Force reload page khi phát hiện situation này
+// Chỉ log warning, để user tự refresh nếu cần (tránh infinite loop)
 if (typeof document !== 'undefined') {
     let lastVisibilityCheck = Date.now()
-    let hasReloadedThisSession = false
 
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
             const now = Date.now()
             const hiddenDuration = now - lastVisibilityCheck
 
-            // Nếu tab hidden quá 10 giây VÀ chưa reload trong session này
-            // Force reload để unstick pending promises
-            if (hiddenDuration > 10000 && !hasReloadedThisSession) {
-                console.warn('[Supabase] Tab was hidden for', Math.round(hiddenDuration / 1000), 's - forcing page reload')
-                hasReloadedThisSession = true
-                window.location.reload()
-                return
-            }
-
-            // Nếu hidden 5-15 giây, thử refresh session
-            if (hiddenDuration > 5000) {
-                console.log('[Supabase] Tab visible after', Math.round(hiddenDuration / 1000), 's - refreshing session')
-                supabase.auth.getSession().then(({ data }) => {
-                    if (data.session) {
-                        console.log('[Supabase] Session refreshed successfully')
-                    }
-                }).catch(err => {
-                    console.warn('[Supabase] Session refresh failed:', err)
-                })
+            // Chỉ log warning nếu hidden quá 10 giây
+            // KHÔNG auto-reload hoặc auto-refetch vì có thể gây infinite loop
+            if (hiddenDuration > 10000) {
+                console.warn('[Supabase] Tab was hidden for', Math.round(hiddenDuration / 1000), 's - data may be stale. User can pull-to-refresh or reload page if needed.')
             }
 
             lastVisibilityCheck = now
