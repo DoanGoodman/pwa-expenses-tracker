@@ -143,17 +143,7 @@ export const useProjects = () => {
 
     useEffect(() => {
         fetchProjects()
-
-        // Safety timeout
-        const safetyTimeout = setTimeout(() => {
-            if (loading) {
-                console.warn('[useProjects] Safety timeout - forcing loading to false')
-                isFetchingRef.current = false
-                setLoading(false)
-            }
-        }, 10000)
-
-        return () => clearTimeout(safetyTimeout)
+        // Không cần safety timeout vì đã có cache và hasDataRef
     }, [fetchProjects])
 
     const addProject = async (projectData) => {
