@@ -19,12 +19,26 @@ const Dashboard = () => {
 
     const { user } = useAuth()
     const { projects } = useProjects()
+
+    // Đợi user load trước khi fetch stats (để có cacheKey đúng)
     const { stats, loading } = useDashboardStats(
         startMonth,
         endMonth,
         selectedProject !== 'all' ? selectedProject : null,
         user?.id  // Truyền userId để tránh gọi getCurrentUserId
     )
+
+    // Nếu chưa có user, hiển thị loading
+    if (!user) {
+        return (
+            <div className="page-container">
+                <Header title="Tổng quan" />
+                <div className="flex items-center justify-center py-20">
+                    <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin" />
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="page-container">
