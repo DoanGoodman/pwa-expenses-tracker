@@ -327,13 +327,72 @@ export const AuthProvider = ({ children }) => {
             }
         )
 
-        // Không cần visibility change handler
-        // Profile đã được cache trong localStorage và sẽ được load khi mount
-        // Visibility change có thể gây ra race conditions và infinite loops
+        // Visibility change handler: Check session khi tab resume từ sleep
+        // Nếu refresh token invalid, tự động logout
+        let lastVisibilityTime = Date.now()
+        const handleVisibilityChange = async () => {
+            if (document.visibilityState === 'visible') {
+                const hiddenDuration = Date.now() - lastVisibilityTime
+
+                // Nếu hidden quá 5 phút, check session
+                if (hiddenDuration > 5 * 60 * 1000) {
+                    console.log('[AuthContext] Tab was hidden for', Math.round(hiddenDuration / 1000 / 60), 'minutes - checking session...')
+
+                    try {
+                        // Thử refresh session
+                        const { data, error } = await supabase.auth.getSession()
+
+                        if (error) {
+                            console.error('[AuthContext] Session check failed:', error)
+
+                            // Nếu lỗi liên quan đến refresh token
+                            if (error.message?.includes('Refresh Token') ||
+                                error.message?.includes('refresh_token') ||
+                                error.message?.includes('Invalid') ||
+                                error.message?.includes('expired')) {
+                                console.warn('[AuthContext] Refresh token invalid - logging out')
+
+                                // Clear tất cả cache và logout
+                                localStorage.removeItem('cached_profile')
+                                localStorage.removeItem('cached_user_role')
+                                localStorage.removeItem('projects_cache')
+                                localStorage.removeItem('categories_cache')
+                                clearUserIdCache()
+
+                                // Sign out
+                                await supabase.auth.signOut()
+
+                                setUser(null)
+                                setProfile(null)
+                                setUserRole(null)
+
+                                // Không alert - chỉ redirect về login page
+                                // App sẽ tự động redirect thông qua ProtectedRoute
+                            }
+                        } else if (!data.session) {
+                            // Không có session - user đã logout
+                            console.log('[AuthContext] No session found after resume')
+                            setUser(null)
+                            setProfile(null)
+                            setUserRole(null)
+                        }
+                    } catch (err) {
+                        console.error('[AuthContext] Error checking session:', err)
+                    }
+                }
+
+                lastVisibilityTime = Date.now()
+            } else {
+                lastVisibilityTime = Date.now()
+            }
+        }
+
+        document.addEventListener('visibilitychange', handleVisibilityChange)
 
         return () => {
             subscription.unsubscribe()
             clearTimeout(safetyTimeout)
+            document.removeEventListener('visibilitychange', handleVisibilityChange)
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
