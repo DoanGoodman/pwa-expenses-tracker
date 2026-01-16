@@ -64,11 +64,46 @@ const getLastDayOfMonth = (yearMonth) => {
 export const useProjects = () => {
     const [projects, setProjects] = useState([])
     const [loading, setLoading] = useState(true)
+    const hasDataRef = useRef(false)  // Track nếu đã có data
+    const isFetchingRef = useRef(false)  // Fetch lock
+
+    // Cache key
+    const cacheKey = 'projects_cache'
+
+    // Load từ cache khi component mount
+    useEffect(() => {
+        try {
+            const cached = localStorage.getItem(cacheKey)
+            if (cached) {
+                const parsed = JSON.parse(cached)
+                console.log('[useProjects] Loaded', parsed.length, 'projects from cache')
+                setProjects(parsed)
+                hasDataRef.current = true
+                setLoading(false)
+            }
+        } catch (e) {
+            console.warn('[useProjects] Failed to load from cache:', e)
+        }
+    }, [])
 
     const fetchProjects = useCallback(async () => {
+        // Fetch lock
+        if (isFetchingRef.current) {
+            console.log('[useProjects] Fetch already in progress, skipping...')
+            return
+        }
+        isFetchingRef.current = true
+
+        // Chỉ show loading nếu chưa có cached data
+        if (!hasDataRef.current) {
+            setLoading(true)
+        }
+
         if (isDemoMode()) {
             setProjects(demoData.projects)
+            hasDataRef.current = true
             setLoading(false)
+            isFetchingRef.current = false
             return
         }
 
@@ -77,6 +112,7 @@ export const useProjects = () => {
             if (!userId) {
                 setProjects([])
                 setLoading(false)
+                isFetchingRef.current = false
                 return
             }
 
@@ -88,16 +124,36 @@ export const useProjects = () => {
 
             if (error) throw error
             setProjects(data || [])
+            hasDataRef.current = true
+
+            // Save to cache
+            try {
+                localStorage.setItem(cacheKey, JSON.stringify(data || []))
+            } catch (e) {
+                console.warn('[useProjects] Failed to save to cache:', e)
+            }
         } catch (error) {
-            console.error('Error fetching projects:', error)
-            alert('Lỗi tải danh sách dự án: ' + error.message)
+            console.error('[useProjects] Fetch ERROR:', error)
+            // KHÔNG dùng alert() vì có thể gây infinite loop
         } finally {
             setLoading(false)
+            isFetchingRef.current = false
         }
     }, [])
 
     useEffect(() => {
         fetchProjects()
+
+        // Safety timeout
+        const safetyTimeout = setTimeout(() => {
+            if (loading) {
+                console.warn('[useProjects] Safety timeout - forcing loading to false')
+                isFetchingRef.current = false
+                setLoading(false)
+            }
+        }, 10000)
+
+        return () => clearTimeout(safetyTimeout)
     }, [fetchProjects])
 
     const addProject = async (projectData) => {
@@ -239,12 +295,40 @@ export const useProjects = () => {
 export const useCategories = () => {
     const [categories, setCategories] = useState([])
     const [loading, setLoading] = useState(true)
+    const hasDataRef = useRef(false)
+    const isFetchingRef = useRef(false)
+    const cacheKey = 'categories_cache'
+
+    // Load từ cache
+    useEffect(() => {
+        try {
+            const cached = localStorage.getItem(cacheKey)
+            if (cached) {
+                const parsed = JSON.parse(cached)
+                console.log('[useCategories] Loaded', parsed.length, 'categories from cache')
+                setCategories(parsed)
+                hasDataRef.current = true
+                setLoading(false)
+            }
+        } catch (e) {
+            console.warn('[useCategories] Failed to load from cache:', e)
+        }
+    }, [])
 
     useEffect(() => {
         const fetchCategories = async () => {
+            if (isFetchingRef.current) return
+            isFetchingRef.current = true
+
+            if (!hasDataRef.current) {
+                setLoading(true)
+            }
+
             if (isDemoMode()) {
                 setCategories(demoData.categories)
+                hasDataRef.current = true
                 setLoading(false)
+                isFetchingRef.current = false
                 return
             }
 
@@ -256,15 +340,35 @@ export const useCategories = () => {
 
                 if (error) throw error
                 setCategories(data || [])
+                hasDataRef.current = true
+
+                // Save to cache
+                try {
+                    localStorage.setItem(cacheKey, JSON.stringify(data || []))
+                } catch (e) {
+                    console.warn('[useCategories] Failed to save to cache:', e)
+                }
             } catch (error) {
-                console.error('Error fetching categories:', error)
-                alert('Lỗi tải danh mục: ' + error.message)
+                console.error('[useCategories] Fetch ERROR:', error)
+                // KHÔNG dùng alert()
             } finally {
                 setLoading(false)
+                isFetchingRef.current = false
             }
         }
 
         fetchCategories()
+
+        // Safety timeout
+        const safetyTimeout = setTimeout(() => {
+            if (loading) {
+                console.warn('[useCategories] Safety timeout - forcing loading to false')
+                isFetchingRef.current = false
+                setLoading(false)
+            }
+        }, 10000)
+
+        return () => clearTimeout(safetyTimeout)
     }, [])
 
     return { categories, loading }
