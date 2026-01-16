@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { X, UserPlus, Users, Trash2, Loader2, AlertCircle, Briefcase } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
@@ -17,6 +17,10 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
     const [error, setError] = useState('')
     const [success, setSuccess] = useState('')
 
+    // Refs để ngăn duplicate fetch
+    const isFetchingRef = useRef(false)
+    const lastFetchUserIdRef = useRef(null)
+
     // Assignment State
     const [assigningStaff, setAssigningStaff] = useState(null)
 
@@ -29,13 +33,29 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
     const MAX_STAFF_ACCOUNTS = 3
     const canCreateMore = staffList.length < MAX_STAFF_ACCOUNTS
 
-    // Fetch danh sách staff với timeout
-    const fetchStaffList = async () => {
-        if (!user) {
+    // Fetch danh sách staff với timeout và lock
+    const fetchStaffList = useCallback(async (forceRefresh = false) => {
+        const userId = user?.id
+
+        if (!userId) {
             setLoading(false)
             return
         }
 
+        // Ngăn duplicate fetch (trừ khi force refresh)
+        if (isFetchingRef.current) {
+            console.log('[StaffManagement] Already fetching, skipping...')
+            return
+        }
+
+        // Skip nếu đã fetch cho user này và không force refresh
+        if (!forceRefresh && lastFetchUserIdRef.current === userId && staffList.length > 0) {
+            console.log('[StaffManagement] Already loaded for this user, skipping...')
+            setLoading(false)
+            return
+        }
+
+        isFetchingRef.current = true
         setLoading(true)
         setError('')
 
@@ -44,12 +64,12 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
         const timeoutId = setTimeout(() => controller.abort(), 10000)
 
         try {
-            console.log('[StaffManagement] Fetching staff for owner:', user.id)
+            console.log('[StaffManagement] Fetching staff for owner:', userId)
 
             const { data, error } = await supabase
                 .from('profiles')
                 .select('id, username, email, created_at')
-                .eq('parent_id', user.id)
+                .eq('parent_id', userId)
                 .eq('role', 'staff')
                 .order('created_at', { ascending: false })
                 .abortSignal(controller.signal)
@@ -60,6 +80,7 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
 
             console.log('[StaffManagement] Found', data?.length || 0, 'staff members')
             setStaffList(data || [])
+            lastFetchUserIdRef.current = userId
         } catch (err) {
             clearTimeout(timeoutId)
 
@@ -71,21 +92,20 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
                 setError('Không thể tải danh sách nhân viên: ' + (err.message || 'Unknown error'))
             }
         } finally {
+            isFetchingRef.current = false
             setLoading(false)
         }
-    }
+    }, [user?.id, staffList.length])
 
     useEffect(() => {
+        if (isOpen && user?.id) {
+            fetchStaffList()
+        }
         if (isOpen) {
-            if (user) {
-                fetchStaffList()
-            } else {
-                setLoading(false)
-            }
             setError('')
             setSuccess('')
         }
-    }, [isOpen, user])
+    }, [isOpen, user?.id])
 
     // Tạo tài khoản staff mới
     const handleCreateStaff = async (e) => {
@@ -112,8 +132,8 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
             setPassword('')
             setShowForm(false)
 
-            // Reload list
-            await fetchStaffList()
+            // Reload list with force refresh
+            await fetchStaffList(true)
         } catch (err) {
             console.error('Error creating staff:', err)
             setError(err.message || 'Không thể tạo tài khoản. Vui lòng thử lại.')
