@@ -32,6 +32,7 @@ export const AuthProvider = ({ children }) => {
         }
     })
     const [loading, setLoading] = useState(true)
+    const [authReady, setAuthReady] = useState(false) // NEW: Session check completed flag
 
     // Refs để tránh duplicate fetch và infinite loop
     const isFetchingRef = useRef(false)
@@ -302,6 +303,7 @@ export const AuthProvider = ({ children }) => {
                 setUser(parsedUser)
                 setUserRole('owner') // Demo user is always owner
             }
+            setAuthReady(true) // NEW
             setLoading(false)
             return
         }
@@ -313,6 +315,7 @@ export const AuthProvider = ({ children }) => {
 
                 if (error) {
                     console.error('Error getting session:', error)
+                    setAuthReady(true) // NEW: Auth check completed (with error)
                     setLoading(false)
                     return
                 }
@@ -353,6 +356,7 @@ export const AuthProvider = ({ children }) => {
                         console.log('[AuthContext] ✅ Using cached profile immediately, role:', cachedRole)
                         setProfile(cachedProfile)
                         setUserRole(cachedRole)
+                        setAuthReady(true) // NEW
                         setLoading(false)
                         
                         // Background refresh sau 2 giây (không block UI)
@@ -367,6 +371,7 @@ export const AuthProvider = ({ children }) => {
                         // Set fallback role ngay lập tức để UI có thể render
                         const fallbackRole = cachedRole || 'owner'
                         setUserRole(fallbackRole)
+                        setAuthReady(true) // NEW: Session check completed
                         setLoading(false)  // ← QUAN TRỌNG: Không chờ fetch
                         
                         // Fetch profile trong background (không await)
@@ -378,10 +383,12 @@ export const AuthProvider = ({ children }) => {
                     }
                 } else {
                     // No user - clear loading
+                    setAuthReady(true) // NEW: Auth check completed (no user)
                     setLoading(false)
                 }
             } catch (err) {
                 console.error('Error in getSession:', err)
+                setAuthReady(true) // NEW: Auth check completed (with error)
             } finally {
                 setLoading(false)
             }
@@ -394,6 +401,7 @@ export const AuthProvider = ({ children }) => {
             // Chỉ trigger nếu đang trong trạng thái loading thực sự và chưa có userRole
             if (!userRoleRef.current) {
                 console.warn('[AuthContext] ⚠️ Safety timeout triggered - forcing loading to false')
+                setAuthReady(true) // NEW: Force auth ready
                 setLoading(false)
                 // Nếu có cached profile nhưng chưa set user, try to recover
                 const cachedProfile = localStorage.getItem('cached_profile')
@@ -426,6 +434,7 @@ export const AuthProvider = ({ children }) => {
 
                 const currentUser = session?.user ?? null
                 setUser(currentUser)
+                setAuthReady(true) // NEW: Always set authReady on auth state change
 
                 // Update cache
                 if (currentUser?.id) {
@@ -435,8 +444,8 @@ export const AuthProvider = ({ children }) => {
                 }
 
                 if (event === 'SIGNED_IN' && currentUser) {
-                    setLoading(true)  // Set loading khi bắt đầu fetch
-                    await fetchProfile(currentUser.id)
+                    // Background fetch - don't block with loading=true
+                    fetchProfile(currentUser.id)
                 } else if (event === 'SIGNED_OUT') {
                     // Clear all caches to avoid conflicts when switching accounts
                     clearAllAppCaches()
@@ -669,6 +678,7 @@ export const AuthProvider = ({ children }) => {
         profile,
         userRole,
         loading,
+        authReady, // NEW: Expose for routing
         signUp,
         signIn,
         signOut,
@@ -676,7 +686,7 @@ export const AuthProvider = ({ children }) => {
         resetPasswordForEmail,
         updatePassword,
         isAuthenticated: !!user,
-        isOwner: userRole === 'owner',
+        isOwner: !userRole || userRole === 'owner', // Fallback to owner if null
         isStaff: userRole === 'staff',
         refetchProfile: () => fetchProfile(user?.id),
     }

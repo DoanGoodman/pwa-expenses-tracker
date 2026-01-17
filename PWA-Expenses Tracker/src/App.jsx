@@ -13,18 +13,23 @@ import ResetPassword from './pages/ResetPassword'
 
 // Component bảo vệ route chỉ dành cho Owner
 const OwnerRoute = ({ children }) => {
-  const { isStaff, loading, userRole } = useAuth()
+  const { isStaff, authReady, user } = useAuth()
 
   // Debug log
-  console.log('[OwnerRoute] loading:', loading, 'userRole:', userRole, 'isStaff:', isStaff)
+  console.log('[OwnerRoute] authReady:', authReady, 'user:', !!user, 'isStaff:', isStaff)
 
-  // Đợi loading xong VÀ userRole được xác định
-  if (loading || userRole === null) {
+  // Chỉ check authReady - KHÔNG check userRole để tránh infinite loading
+  if (!authReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     )
+  }
+
+  // Chưa đăng nhập
+  if (!user) {
+    return <Navigate to="/login" replace />
   }
 
   // Redirect staff về trang chi phí
@@ -38,13 +43,13 @@ const OwnerRoute = ({ children }) => {
 
 // Protected App Content
 const AppContent = () => {
-  const { isAuthenticated, loading, isStaff, isOwner } = useAuth()
+  const { isAuthenticated, authReady, isStaff, isOwner } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
 
   // Redirect về trang mặc định dựa trên role khi đăng nhập
   useEffect(() => {
-    if (!loading && isAuthenticated) {
+    if (authReady && isAuthenticated) {
       const currentPath = location.pathname
 
       // Staff: redirect về /expenses nếu đang ở trang owner-only
@@ -54,9 +59,10 @@ const AppContent = () => {
 
       // Owner: Không cần redirect gì đặc biệt, họ được vào tất cả
     }
-  }, [loading, isAuthenticated, isStaff, location.pathname, navigate])
+  }, [authReady, isAuthenticated, isStaff, location.pathname, navigate])
 
-  if (loading) {
+  // Chỉ check authReady - session check completed
+  if (!authReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
