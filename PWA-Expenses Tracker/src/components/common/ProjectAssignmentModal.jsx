@@ -50,12 +50,15 @@ const ProjectAssignmentModal = ({ isOpen, onClose, staff, onSaved }) => {
     }, [isOpen, staff])
 
     // Logic Assignments
+    // Note: project_id is BigInt, must compare carefully
     const toggleProject = (projectId) => {
         setAssignedInfo(prev => {
-            if (prev.includes(projectId)) {
-                return prev.filter(id => id !== projectId)
+            // Use Number() for consistent comparison since JS handles BigInt as number when < 2^53
+            const numId = Number(projectId)
+            if (prev.some(id => Number(id) === numId)) {
+                return prev.filter(id => Number(id) !== numId)
             } else {
-                return [...prev, projectId]
+                return [...prev, numId]
             }
         })
     }
@@ -72,11 +75,11 @@ const ProjectAssignmentModal = ({ isOpen, onClose, staff, onSaved }) => {
 
             if (fetchErr) throw fetchErr
 
-            const currentIds = current.map(c => c.project_id)
+            const currentIds = current.map(c => Number(c.project_id))
             // Ensure IDs are comparing same type (number vs number)
-            const newIds = assignedInfo
+            const newIds = assignedInfo.map(id => Number(id))
 
-            // 2. Calculate diff
+            // 2. Calculate diff (use Number for safe comparison)
             const toAdd = newIds.filter(id => !currentIds.includes(id))
             const toRemove = currentIds.filter(id => !newIds.includes(id))
 
@@ -144,7 +147,8 @@ const ProjectAssignmentModal = ({ isOpen, onClose, staff, onSaved }) => {
                     ) : (
                         <div className="space-y-2">
                             {projects.map(project => {
-                                const isSelected = assignedInfo.includes(project.id)
+                                // Use Number() for safe BigInt comparison
+                                const isSelected = assignedInfo.some(id => Number(id) === Number(project.id))
                                 return (
                                     <div
                                         key={project.id}

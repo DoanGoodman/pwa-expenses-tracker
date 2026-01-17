@@ -40,6 +40,7 @@ export const checkDuplicateHash = async (fileHash) => {
             .from('expenses')
             .select('id')
             .eq('file_hash', fileHash)
+            .is('deleted_at', null)  // Exclude soft-deleted expenses
             .limit(1)
 
         if (error) {
