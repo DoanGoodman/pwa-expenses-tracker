@@ -97,7 +97,6 @@ export const AuthProvider = ({ children }) => {
             console.error('Error clearing app caches:', e)
         }
     }
-    }
 
     /**
      * Fetch user profile với đầy đủ cơ chế bảo vệ:
@@ -650,3 +649,5 @@ export const AuthProvider = ({ children }) => {
         </AuthContext.Provider>
     )
 }
+
+export default AuthProvider
