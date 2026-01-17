@@ -71,12 +71,12 @@ export const AuthProvider = ({ children }) => {
      * @param {object} options - { fromVisibilityChange: boolean, forceRefresh: boolean }
      */
     const fetchProfile = useCallback(async (userId, options = {}) => {
+        console.log('[AuthContext] 🔵 fetchProfile START - userId:', userId, 'options:', options)
+
         const { fromVisibilityChange = false, forceRefresh = false } = options
 
         if (!userId) {
-            setProfile(null)
-            setUserRole(null)
-            setLoading(false)
+            console.warn('[AuthContext] ⚠️ No userId provided, aborting')
             return
         }
 
@@ -89,6 +89,7 @@ export const AuthProvider = ({ children }) => {
                 console.log('[AuthContext] Profile still fresh, skipping fetch on visibility change')
                 // Đảm bảo userRole có giá trị nếu skip
                 if (!userRoleRef.current) {
+                    console.log('[AuthContext] Setting fallback role: owner (fresh profile)')
                     setUserRole('owner')
                 }
                 return
@@ -100,6 +101,7 @@ export const AuthProvider = ({ children }) => {
             console.log('[AuthContext] Debounce: Too soon since last fetch')
             // Đảm bảo userRole có giá trị nếu skip
             if (!userRoleRef.current) {
+                console.log('[AuthContext] Setting fallback role: owner (debounce)')
                 setUserRole('owner')
             }
             return
@@ -107,65 +109,51 @@ export const AuthProvider = ({ children }) => {
 
         // === GUARD 3: Fetching lock (prevent concurrent) ===
         if (isFetchingRef.current) {
-            console.log('[AuthContext] Already fetching, ignoring duplicate call')
+            console.log('[AuthContext] ⏭️ Already fetching, ignoring duplicate call')
             return
         }
 
         // === GUARD 4: Max retry limit ===
         if (retryCountRef.current >= maxRetries) {
-            console.error('[AuthContext] Max retries reached, stopping')
+            console.error('[AuthContext] ❌ Max retries reached, stopping')
             setLoading(false)
-            // Reset retry count after showing error
+            // Ensure role is set even on max retry
+            if (!userRoleRef.current) {
+                console.log('[AuthContext] Setting fallback role: owner (max retry)')
+                setUserRole('owner')
+            }
             retryCountRef.current = 0
             return
         }
 
-        // Set locks
+        // Lock fetch để ngăn duplicate
         isFetchingRef.current = true
         lastUserIdRef.current = userId
 
-        // Timeout với AbortController (10 giây)
+        // Timeout sau 15 giây (tăng từ 10s -> 15s để tránh timeout mạng chậm)
         const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 10000)
+        const timeoutId = setTimeout(() => {
+            console.warn('[AuthContext] ⏰ Fetch timeout, aborting...')
+            controller.abort()
+        }, 15000)
 
         try {
+            console.log('[AuthContext] 🔍 Querying profiles table...')
             const { data, error } = await supabase
-                .rpc('get_my_profile', { user_id: userId })
-                .abortSignal(controller.signal)
+                .from('profiles')
+                .select('*')
+                .eq('id', userId)
                 .single()
+                .abortSignal(controller.signal)
 
             clearTimeout(timeoutId)
 
             if (error) {
-                // Fallback: direct query if RPC doesn't exist
-                if (error.code === 'PGRST202') {
-                    const { data: fallbackData, error: fallbackError } = await supabase
-                        .from('profiles')
-                        .select('*')
-                        .eq('id', userId)
-                        .single()
-
-                    if (!fallbackError && fallbackData) {
-                        setProfile(fallbackData)
-                        setUserRole(fallbackData?.role || 'owner')
-                        cacheProfile(fallbackData, fallbackData?.role || 'owner')
-                        lastFetchTimeRef.current = Date.now()
-                        retryCountRef.current = 0 // Reset retry on success
-                        return
-                    }
-                }
-                // Default to owner if no profile
-                if (!userRoleRef.current) {
-                    setUserRole('owner')
-                }
-                retryCountRef.current = 0
-                return
+                console.error('[AuthContext] ❌ Profiles query error:', error.message, error.code)
+                throw error
             }
 
-            // === SUCCESS: Update state and cache ===
-            setProfile(data)
-            lastFetchTimeRef.current = Date.now()
-            retryCountRef.current = 0 // Reset retry count on success
+            console.log('[AuthContext] ✅ Profiles data received:', { id: data?.id, role: data?.role, is_active: data?.is_active })
 
             // Check if account is disabled
             if (data?.is_active === false) {
@@ -177,17 +165,18 @@ export const AuthProvider = ({ children }) => {
 
             // For Staff: Check if they still have a parent
             if (data?.role === 'staff') {
-                console.log('[AuthContext] Staff detected, checking parent status...')
+                console.log('[AuthContext] 👤 Staff detected, checking parent status...')
 
                 if (!data?.parent_id) {
                     console.warn('Staff account has no parent, logging out...')
-                    alert('Tài khoản của bạn đã bị xóa khỏi hệ thống. Vui lòng liên hệ quản trị viên.')
+                    alert('Tài khoản của bạn đã bị xóa khỏi hệ thống hệ thống. Vui lòng liên hệ quản trị viên.')
                     await supabase.auth.signOut()
                     return
                 }
 
                 // Check if parent (owner) is also active using RPC function (bypasses RLS)
                 try {
+                    console.log('[AuthContext] Checking parent is_active via RPC...')
                     // Create a promise race to prevent RPC from hanging indefinitely
                     const rpcPromise = supabase.rpc('check_parent_is_active')
                     const timeoutPromise = new Promise((_, reject) =>
@@ -205,30 +194,34 @@ export const AuthProvider = ({ children }) => {
                         await supabase.auth.signOut()
                         return
                     }
-                    console.log('[AuthContext] Parent status OK')
+                    console.log('[AuthContext] ✅ Parent status OK')
                 } catch (rpcErr) {
                     // If function doesn't exist yet or times out, skip check
-                    console.warn(`check_parent_is_active warning: ${rpcErr.message || rpcErr}`)
+                    console.warn(`[AuthContext] ⚠️ check_parent_is_active warning: ${rpcErr.message || rpcErr}`)
+                    // Continue anyway - don't block login on RPC error
                 }
             }
 
             const determinedRole = data?.role || 'owner'
-            console.log('[AuthContext] Setting user role:', determinedRole)
+            console.log('[AuthContext] 🎯 Setting user role:', determinedRole)
             setUserRole(determinedRole)
             cacheProfile(data, determinedRole)
+            lastFetchTimeRef.current = Date.now()
+            retryCountRef.current = 0 // Reset retry count on success
 
         } catch (err) {
             clearTimeout(timeoutId)
+            console.error('[AuthContext] ❌ fetchProfile caught error:', err.name, err.message)
 
             // Handle abort (timeout)
             if (err.name === 'AbortError') {
-                console.warn(`[AuthContext] fetchProfile timeout (attempt ${retryCountRef.current + 1}/${maxRetries})`)
+                console.warn(`[AuthContext] ⏰ fetchProfile timeout (attempt ${retryCountRef.current + 1}/${maxRetries})`)
                 retryCountRef.current++
 
                 // === EXPONENTIAL BACKOFF RETRY ===
                 if (retryCountRef.current < maxRetries && !fromVisibilityChange) {
                     const backoffDelay = Math.pow(2, retryCountRef.current) * 1000 // 2s, 4s, 8s
-                    console.log(`[AuthContext] Retrying in ${backoffDelay}ms...`)
+                    console.log(`[AuthContext] 🔄 Retrying in ${backoffDelay}ms...`)
 
                     // Release lock before retry
                     isFetchingRef.current = false
@@ -236,20 +229,17 @@ export const AuthProvider = ({ children }) => {
                     await new Promise(resolve => setTimeout(resolve, backoffDelay))
                     return fetchProfile(userId, { fromVisibilityChange, forceRefresh })
                 } else {
-                    console.error('[AuthContext] All retry attempts failed or skipped for visibility change')
-                    // Use cached role or default to owner
-                    if (!userRoleRef.current) {
-                        setUserRole('owner')
-                    }
-                }
-            } else {
-                console.error('Error in fetchProfile:', err)
-                // Use cached role or default to owner
-                if (!userRoleRef.current) {
-                    setUserRole('owner')
+                    console.error('[AuthContext] ❌ All retry attempts failed or skipped for visibility change')
                 }
             }
+
+            // === ALWAYS SET FALLBACK ROLE IN ERROR CASE ===
+            const fallbackRole = 'owner'
+            console.log('[AuthContext] 🔧 Setting fallback role:', fallbackRole, '(error recovery)')
+            setUserRole(fallbackRole)
+
         } finally {
+            console.log('[AuthContext] 🏁 fetchProfile FINALLY - releasing lock and stopping loading')
             // === ALWAYS release lock and stop loading ===
             isFetchingRef.current = false
             setLoading(false)
@@ -259,6 +249,7 @@ export const AuthProvider = ({ children }) => {
 
     // Sync userRoleRef với userRole state
     useEffect(() => {
+        console.log('[AuthContext] 📝 userRole state changed:', userRole)
         userRoleRef.current = userRole
     }, [userRole])
 
