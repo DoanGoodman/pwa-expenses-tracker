@@ -135,15 +135,10 @@ export const AuthProvider = ({ children }) => {
             }
         }
 
-        // === GUARD 2: Short debounce (2 giây) để tránh spam ===
-        if (lastUserIdRef.current === userId && now - lastFetchTimeRef.current < 2000 && !forceRefresh) {
-            console.log('[AuthContext] Debounce: Too soon since last fetch')
-            // Đảm bảo userRole có giá trị nếu skip
-            if (!userRoleRef.current) {
-                console.log('[AuthContext] Setting fallback role: owner (debounce)')
-                setUserRole('owner')
-            }
-            return
+        // === GUARD 2: Short debounce (5 giây) để tránh spam ===
+        if (lastUserIdRef.current === userId && now - lastFetchTimeRef.current < 5000 && !forceRefresh) {
+            console.log('[AuthContext] Debounce: Too soon since last fetch, skipping')
+            return // Don't set fallback role here, profile is already set
         }
 
         // === GUARD 3: Fetching lock (prevent concurrent) ===
@@ -168,6 +163,7 @@ export const AuthProvider = ({ children }) => {
         // Lock fetch để ngăn duplicate
         isFetchingRef.current = true
         lastUserIdRef.current = userId
+        lastFetchTimeRef.current = Date.now() // Set ngay để debounce hoạt động
 
         // Timeout sau 15 giây (tăng từ 10s -> 15s để tránh timeout mạng chậm)
         const controller = new AbortController()
@@ -356,6 +352,7 @@ export const AuthProvider = ({ children }) => {
                         console.log('[AuthContext] ✅ Using cached profile immediately, role:', cachedRole)
                         setProfile(cachedProfile)
                         setUserRole(cachedRole)
+                        userRoleRef.current = cachedRole // Set ref immediately to prevent duplicate fetches
                         setAuthReady(true) // NEW
                         setLoading(false)
                         
@@ -371,6 +368,7 @@ export const AuthProvider = ({ children }) => {
                         // Set fallback role ngay lập tức để UI có thể render
                         const fallbackRole = cachedRole || 'owner'
                         setUserRole(fallbackRole)
+                        userRoleRef.current = fallbackRole // Set ref immediately to prevent duplicate fetches
                         setAuthReady(true) // NEW: Session check completed
                         setLoading(false)  // ← QUAN TRỌNG: Không chờ fetch
                         
@@ -444,8 +442,10 @@ export const AuthProvider = ({ children }) => {
                 }
 
                 if (event === 'SIGNED_IN' && currentUser) {
-                    // Background fetch - don't block with loading=true
-                    fetchProfile(currentUser.id)
+                    // Only fetch if we don't have a valid profile yet
+                    if (!userRoleRef.current) {
+                        fetchProfile(currentUser.id)
+                    }
                 } else if (event === 'SIGNED_OUT') {
                     // Clear all caches to avoid conflicts when switching accounts
                     clearAllAppCaches()

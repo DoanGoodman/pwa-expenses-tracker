@@ -15,9 +15,6 @@ import ResetPassword from './pages/ResetPassword'
 const OwnerRoute = ({ children }) => {
   const { isStaff, authReady, user } = useAuth()
 
-  // Debug log
-  console.log('[OwnerRoute] authReady:', authReady, 'user:', !!user, 'isStaff:', isStaff)
-
   // Chỉ check authReady - KHÔNG check userRole để tránh infinite loading
   if (!authReady) {
     return (
@@ -34,7 +31,6 @@ const OwnerRoute = ({ children }) => {
 
   // Redirect staff về trang chi phí
   if (isStaff) {
-    console.log('[OwnerRoute] User is staff, redirecting to /expenses')
     return <Navigate to="/expenses" replace />
   }
 
