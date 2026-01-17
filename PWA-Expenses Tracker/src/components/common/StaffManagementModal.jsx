@@ -106,6 +106,11 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
 
     // Load cache ngay khi modal mở và user available
     useEffect(() => {
+        if (isOpen && !user?.id) {
+            // User chưa load xong, show loading
+            setLoading(true)
+            return
+        }
         if (isOpen && user?.id && !hasCacheLoaded) {
             const cached = getCachedStaff(user.id)
             const cachedAssignments = getCachedAssignments(user.id)
@@ -116,7 +121,7 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
                     setStaffAssignments(cachedAssignments)
                 }
                 setHasCacheLoaded(true)
-                // KHÔNG set loading = true vì đã có data
+                setLoading(false) // Tắt loading vì đã có data từ cache
             } else {
                 // Không có cache, cần loading
                 setLoading(true)
@@ -241,6 +246,12 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
         if (isOpen) {
             setError('')
             setSuccess('')
+        }
+        // Reset state khi modal đóng để tránh stale data
+        if (!isOpen) {
+            setHasCacheLoaded(false)
+            isFetchingRef.current = false
+            lastFetchUserIdRef.current = null
         }
     }, [isOpen, user?.id])
 

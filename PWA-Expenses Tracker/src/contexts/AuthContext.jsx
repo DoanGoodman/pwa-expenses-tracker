@@ -316,10 +316,28 @@ export const AuthProvider = ({ children }) => {
 
         getSession()
 
-        // Safety timeout: nếu sau 5 giây vẫn loading, force set loading = false
+        // Safety timeout: nếu sau 10 giây vẫn loading, force set loading = false và set default user từ cache
         const safetyTimeout = setTimeout(() => {
+            console.warn('[AuthContext] ⚠️ Safety timeout triggered - forcing loading to false')
             setLoading(false)
-        }, 5000)
+            // Nếu có cached profile nhưng chưa set user, try to recover
+            if (!user) {
+                const cachedProfile = localStorage.getItem('cached_profile')
+                if (cachedProfile) {
+                    try {
+                        const parsed = JSON.parse(cachedProfile)
+                        console.log('[AuthContext] Recovering user from cached profile:', parsed.id)
+                        // Không set user vì cần actual session, nhưng đảm bảo userRole được set
+                        if (!userRoleRef.current) {
+                            const cachedRole = localStorage.getItem('cached_user_role') || 'owner'
+                            setUserRole(cachedRole)
+                        }
+                    } catch (e) {
+                        console.error('[AuthContext] Failed to recover from cache:', e)
+                    }
+                }
+            }
+        }, 10000)
 
         // Listen for auth changes (chỉ handle SIGNED_IN và SIGNED_OUT)
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
