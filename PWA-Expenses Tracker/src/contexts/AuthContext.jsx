@@ -566,6 +566,7 @@ export const AuthProvider = ({ children }) => {
                 user_metadata: { full_name: email.split('@')[0] }
             }
             localStorage.setItem('demo_user', JSON.stringify(demoUser))
+            sessionStorage.setItem('just_logged_in', 'true') // NEW: Flag for redirect
             setUser(demoUser)
             return { success: true }
         }
@@ -578,6 +579,7 @@ export const AuthProvider = ({ children }) => {
         if (error) {
             return { success: false, error: error.message }
         }
+        sessionStorage.setItem('just_logged_in', 'true') // NEW: Flag for redirect
         return { success: true, data }
     }
 
@@ -621,9 +623,13 @@ export const AuthProvider = ({ children }) => {
                 user_metadata: { full_name: 'Demo Google User', avatar_url: '' }
             }
             localStorage.setItem('demo_user', JSON.stringify(demoUser))
+            sessionStorage.setItem('just_logged_in', 'true') // NEW: Flag for redirect
             setUser(demoUser)
             return { success: true }
         }
+
+        // Set flag trước khi redirect để sau khi OAuth callback sẽ redirect về Dashboard
+        sessionStorage.setItem('just_logged_in', 'true') // NEW: Flag for redirect
 
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
@@ -633,6 +639,7 @@ export const AuthProvider = ({ children }) => {
         })
 
         if (error) {
+            sessionStorage.removeItem('just_logged_in') // Remove flag on error
             return { success: false, error: error.message }
         }
         return { success: true }

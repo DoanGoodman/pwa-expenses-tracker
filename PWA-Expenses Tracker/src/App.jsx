@@ -47,7 +47,7 @@ const AppContent = () => {
   const location = useLocation()
   const navigate = useNavigate()
 
-  // Redirect về trang mặc định dựa trên role khi đăng nhập
+  // Redirect về trang mặc định dựa trên role sau khi đăng nhập
   useEffect(() => {
     if (authReady && isAuthenticated) {
       const currentPath = location.pathname
@@ -57,9 +57,17 @@ const AppContent = () => {
         navigate('/expenses', { replace: true })
       }
 
-      // Owner: Không cần redirect gì đặc biệt, họ được vào tất cả
+      // Owner: Luôn redirect về Dashboard khi vừa login (không ở trang cụ thể)
+      // Check nếu vừa login bằng cách kiểm tra sessionStorage flag
+      const justLoggedIn = sessionStorage.getItem('just_logged_in')
+      if (isOwner && justLoggedIn === 'true') {
+        sessionStorage.removeItem('just_logged_in')
+        if (currentPath !== '/') {
+          navigate('/', { replace: true })
+        }
+      }
     }
-  }, [authReady, isAuthenticated, isStaff, location.pathname, navigate])
+  }, [authReady, isAuthenticated, isStaff, isOwner, location.pathname, navigate])
 
   // Chỉ check authReady - session check completed
   if (!authReady) {
