@@ -13,13 +13,10 @@ import ResetPassword from './pages/ResetPassword'
 
 // Component bảo vệ route chỉ dành cho Owner
 const OwnerRoute = ({ children }) => {
-  const { isStaff, loading, userRole } = useAuth()
+  const { isStaff, authReady, user } = useAuth()
 
-  // Debug log
-  console.log('[OwnerRoute] loading:', loading, 'userRole:', userRole, 'isStaff:', isStaff)
-
-  // Đợi loading xong VÀ userRole được xác định
-  if (loading || userRole === null) {
+  // Chỉ check authReady - KHÔNG check userRole để tránh infinite loading
+  if (!authReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin" />
@@ -27,9 +24,13 @@ const OwnerRoute = ({ children }) => {
     )
   }
 
+  // Chưa đăng nhập
+  if (!user) {
+    return <Navigate to="/login" replace />
+  }
+
   // Redirect staff về trang chi phí
   if (isStaff) {
-    console.log('[OwnerRoute] User is staff, redirecting to /expenses')
     return <Navigate to="/expenses" replace />
   }
 
@@ -38,13 +39,13 @@ const OwnerRoute = ({ children }) => {
 
 // Protected App Content
 const AppContent = () => {
-  const { isAuthenticated, loading, isStaff, isOwner } = useAuth()
+  const { isAuthenticated, authReady, isStaff, isOwner } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
 
-  // Redirect về trang mặc định dựa trên role khi đăng nhập
+  // Redirect về trang mặc định dựa trên role sau khi đăng nhập
   useEffect(() => {
-    if (!loading && isAuthenticated) {
+    if (authReady && isAuthenticated) {
       const currentPath = location.pathname
 
       // Staff: redirect về /expenses nếu đang ở trang owner-only
@@ -52,11 +53,20 @@ const AppContent = () => {
         navigate('/expenses', { replace: true })
       }
 
-      // Owner: Không cần redirect gì đặc biệt, họ được vào tất cả
+      // Owner: Luôn redirect về Dashboard khi vừa login (không ở trang cụ thể)
+      // Check nếu vừa login bằng cách kiểm tra sessionStorage flag
+      const justLoggedIn = sessionStorage.getItem('just_logged_in')
+      if (isOwner && justLoggedIn === 'true') {
+        sessionStorage.removeItem('just_logged_in')
+        if (currentPath !== '/') {
+          navigate('/', { replace: true })
+        }
+      }
     }
-  }, [loading, isAuthenticated, isStaff, location.pathname, navigate])
+  }, [authReady, isAuthenticated, isStaff, isOwner, location.pathname, navigate])
 
-  if (loading) {
+  // Chỉ check authReady - session check completed
+  if (!authReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />

@@ -36,53 +36,87 @@ export function useFeaturePermission(featureName = 'receipt_scanner') {
 
             // Nếu là staff (tài khoản con), check quyền và trạng thái của parent trước
             if (isStaff && profile?.parent_id) {
+                console.log('[useFeaturePermission] Staff detected, checking parent permission...', {
+                    staffId: user.id,
+                    parentId: profile.parent_id
+                })
+
                 // Check if parent is active
                 const { data: parentProfile, error: parentProfileError } = await supabase
                     .from('profiles')
                     .select('is_active')
                     .eq('id', profile.parent_id)
-                    .single()
+                    .maybeSingle()  // Use maybeSingle instead of single
+
+                if (parentProfileError) {
+                    console.warn('[useFeaturePermission] Error checking parent profile:', parentProfileError)
+                }
 
                 if (!parentProfileError && parentProfile?.is_active === false) {
                     // Parent bị vô hiệu hóa -> Staff không có quyền
+                    console.log('[useFeaturePermission] Parent is inactive, denying access')
                     setStatus('none')
                     setLoading(false)
                     return
                 }
 
                 // Check parent's permission for this feature
+                // Use maybeSingle() to handle case where no record exists
                 const { data: parentPermission, error: parentError } = await supabase
                     .from('feature_permissions')
                     .select('status')
                     .eq('user_id', profile.parent_id)
                     .eq('feature_name', featureName)
-                    .single()
+                    .maybeSingle()  // Use maybeSingle instead of single
 
-                if (!parentError && parentPermission?.status === 'approved') {
+                console.log('[useFeaturePermission] Parent permission query result:', {
+                    parentPermission,
+                    parentError: parentError?.message
+                })
+
+                if (parentError) {
+                    console.warn('[useFeaturePermission] Error checking parent permission:', parentError)
+                    // Continue to check own permission instead of failing
+                }
+
+                if (parentPermission?.status === 'approved') {
                     // Parent có quyền -> con cũng có quyền
+                    console.log('[useFeaturePermission] Parent has approved permission, granting access to staff')
                     setStatus('approved')
                     setLoading(false)
                     return
                 }
+
+                // Parent không có quyền hoặc chưa request -> Staff cũng không có
+                // Không cần check tiếp quyền của chính staff vì staff không tự request được
+                console.log('[useFeaturePermission] Parent does not have approved permission')
+                setStatus('none')
+                setLoading(false)
+                return
             }
 
-            // Check quyền của chính user
+            // Check quyền của chính user (for Owner accounts)
+            console.log('[useFeaturePermission] Checking own permission for user:', user.id)
             const { data, error: fetchError } = await supabase
                 .from('feature_permissions')
                 .select('status')
                 .eq('user_id', user.id)
                 .eq('feature_name', featureName)
-                .single()
+                .maybeSingle()  // Use maybeSingle instead of single
+
+            console.log('[useFeaturePermission] Own permission query result:', {
+                data,
+                fetchError: fetchError?.message
+            })
 
             if (fetchError) {
-                if (fetchError.code === 'PGRST116') {
-                    // No record found - user hasn't requested yet
-                    setStatus('none')
-                } else {
-                    throw fetchError
-                }
-            } else {
+                console.error('[useFeaturePermission] Error fetching own permission:', fetchError)
+                setStatus('none')
+            } else if (data) {
                 setStatus(data.status)
+            } else {
+                // No record found - user hasn't requested yet
+                setStatus('none')
             }
         } catch (err) {
             console.error('Error fetching permission:', err)

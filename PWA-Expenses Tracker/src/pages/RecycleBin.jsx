@@ -26,10 +26,10 @@ const RecycleBin = () => {
                 }
 
                 // Get expenses where deleted_at is NOT null
+                // Note: RLS handles visibility - Owner sees own + staff's deleted expenses
                 const { data, error } = await supabase
                     .from('expenses')
-                    .select('*, projects(name), categories(name)')
-                    .eq('user_id', user.id)
+                    .select('*, projects(name), categories(name), profiles:user_id(username)')
                     .not('deleted_at', 'is', null)
                     .order('deleted_at', { ascending: false })
 
@@ -147,6 +147,9 @@ const RecycleBin = () => {
                                             <div className="mt-2 text-xs text-gray-500 space-y-1">
                                                 <p>Dự án: {expense.projects?.name || 'N/A'}</p>
                                                 <p>Danh mục: {expense.categories?.name || 'N/A'}</p>
+                                                {expense.profiles?.username && (
+                                                    <p>Người tạo: {expense.profiles.username}</p>
+                                                )}
                                                 <p>Đã xóa: {formatDate(expense.deleted_at)}</p>
                                             </div>
                                         </div>

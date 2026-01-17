@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { X, UserPlus, Users, Trash2, Loader2, AlertCircle, Briefcase, RefreshCw } from 'lucide-react'
+import { X, UserPlus, Users, Trash2, Loader2, AlertCircle, Briefcase, RefreshCw, ChevronDown, ChevronUp, FolderKanban } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import ProjectAssignmentModal from './ProjectAssignmentModal'
@@ -7,6 +7,9 @@ import ProjectAssignmentModal from './ProjectAssignmentModal'
 // Cache key for staff list
 const STAFF_CACHE_KEY = 'cached_staff_list'
 const STAFF_CACHE_EXPIRY = 5 * 60 * 1000 // 5 minutes
+
+// Cache key for staff assignments
+const STAFF_ASSIGNMENTS_CACHE_KEY = 'cached_staff_assignments'
 
 // Cache helpers
 const getCachedStaff = (ownerId) => {
@@ -38,6 +41,35 @@ const setCachedStaff = (ownerId, data) => {
     }
 }
 
+// Cache helpers for assignments
+const getCachedAssignments = (ownerId) => {
+    try {
+        const cached = localStorage.getItem(STAFF_ASSIGNMENTS_CACHE_KEY)
+        if (!cached) return null
+
+        const { data, ownerId: cachedOwnerId, timestamp } = JSON.parse(cached)
+
+        if (cachedOwnerId === ownerId && Date.now() - timestamp < STAFF_CACHE_EXPIRY) {
+            return data
+        }
+        return null
+    } catch {
+        return null
+    }
+}
+
+const setCachedAssignments = (ownerId, data) => {
+    try {
+        localStorage.setItem(STAFF_ASSIGNMENTS_CACHE_KEY, JSON.stringify({
+            data,
+            ownerId,
+            timestamp: Date.now()
+        }))
+    } catch (e) {
+        console.warn('Failed to cache staff assignments:', e)
+    }
+}
+
 /**
  * Modal quản lý tài khoản nhân viên
  * Cho phép Owner xem danh sách staff và tạo tài khoản mới
@@ -60,6 +92,8 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
 
     // Assignment State
     const [assigningStaff, setAssigningStaff] = useState(null)
+    const [staffAssignments, setStaffAssignments] = useState({}) // { staffId: [{ project_id, project_name }] }
+    const [expandedStaff, setExpandedStaff] = useState({}) // { staffId: boolean }
 
     // Form state
     const [username, setUsername] = useState('')
@@ -72,13 +106,22 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
 
     // Load cache ngay khi modal mở và user available
     useEffect(() => {
+        if (isOpen && !user?.id) {
+            // User chưa load xong, show loading
+            setLoading(true)
+            return
+        }
         if (isOpen && user?.id && !hasCacheLoaded) {
             const cached = getCachedStaff(user.id)
+            const cachedAssignments = getCachedAssignments(user.id)
             if (cached && cached.length > 0) {
                 console.log('[StaffManagement] Loaded', cached.length, 'staff from cache')
                 setStaffList(cached)
+                if (cachedAssignments) {
+                    setStaffAssignments(cachedAssignments)
+                }
                 setHasCacheLoaded(true)
-                // KHÔNG set loading = true vì đã có data
+                setLoading(false) // Tắt loading vì đã có data từ cache
             } else {
                 // Không có cache, cần loading
                 setLoading(true)
@@ -147,6 +190,32 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
 
             // Save to cache
             setCachedStaff(userId, data || [])
+
+            // Fetch project assignments cho tất cả staff
+            if (data && data.length > 0) {
+                const staffIds = data.map(s => s.id)
+                const { data: assignmentsData, error: assignmentsError } = await supabase
+                    .from('project_assignments')
+                    .select('staff_id, project_id, projects(name)')
+                    .in('staff_id', staffIds)
+
+                if (!assignmentsError && assignmentsData) {
+                    // Group by staff_id
+                    const grouped = assignmentsData.reduce((acc, item) => {
+                        if (!acc[item.staff_id]) {
+                            acc[item.staff_id] = []
+                        }
+                        acc[item.staff_id].push({
+                            project_id: item.project_id,
+                            project_name: item.projects?.name || 'Dự án không tên'
+                        })
+                        return acc
+                    }, {})
+                    setStaffAssignments(grouped)
+                    setCachedAssignments(userId, grouped)
+                    console.log('[StaffManagement] Loaded assignments for', Object.keys(grouped).length, 'staff')
+                }
+            }
         } catch (err) {
             clearTimeout(timeoutId)
             console.error('[StaffManagement] Catch error:', err.name, err.message)
@@ -177,6 +246,12 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
         if (isOpen) {
             setError('')
             setSuccess('')
+        }
+        // Reset state khi modal đóng để tránh stale data
+        if (!isOpen) {
+            setHasCacheLoaded(false)
+            isFetchingRef.current = false
+            lastFetchUserIdRef.current = null
         }
     }, [isOpen, user?.id])
 
@@ -417,40 +492,88 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
                                 </div>
                             ) : (
                                 <div className="space-y-2">
-                                    {staffList.map((staff) => (
-                                        <div
-                                            key={staff.id}
-                                            className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between"
-                                        >
-                                            <div>
-                                                <p className="font-medium text-slate-800">{staff.username}</p>
-                                                <p className="text-xs text-slate-500">{staff.email}</p>
-                                            </div>
+                                    {staffList.map((staff) => {
+                                        const assignments = staffAssignments[staff.id] || []
+                                        const isExpanded = expandedStaff[staff.id]
+                                        const hasAssignments = assignments.length > 0
+                                        
+                                        return (
+                                            <div
+                                                key={staff.id}
+                                                className="bg-white border border-slate-200 rounded-xl overflow-hidden"
+                                            >
+                                                <div className="p-3 flex items-center justify-between">
+                                                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                        {hasAssignments && (
+                                                            <button
+                                                                onClick={() => setExpandedStaff(prev => ({
+                                                                    ...prev,
+                                                                    [staff.id]: !prev[staff.id]
+                                                                }))}
+                                                                className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded transition-colors shrink-0"
+                                                            >
+                                                                {isExpanded ? (
+                                                                    <ChevronUp className="w-4 h-4" />
+                                                                ) : (
+                                                                    <ChevronDown className="w-4 h-4" />
+                                                                )}
+                                                            </button>
+                                                        )}
+                                                        <div className="min-w-0">
+                                                            <p className="font-medium text-slate-800">{staff.username}</p>
+                                                            <p className="text-xs text-slate-500 truncate">{staff.email}</p>
+                                                            {hasAssignments && (
+                                                                <p className="text-xs text-indigo-600 mt-0.5 flex items-center gap-1">
+                                                                    <FolderKanban className="w-3 h-3" />
+                                                                    {assignments.length} dự án
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    </div>
 
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    onClick={() => setAssigningStaff(staff)}
-                                                    className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                                                    title="Phân quyền dự án"
-                                                >
-                                                    <Briefcase className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteStaff(staff.id, staff.username)}
-                                                    disabled={deleting === staff.id}
-                                                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors
-                                                             disabled:opacity-50"
-                                                    title="Xóa tài khoản"
-                                                >
-                                                    {deleting === staff.id ? (
-                                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                                    ) : (
-                                                        <Trash2 className="w-4 h-4" />
-                                                    )}
-                                                </button>
+                                                    <div className="flex items-center gap-1 shrink-0">
+                                                        <button
+                                                            onClick={() => setAssigningStaff(staff)}
+                                                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                                            title="Phân quyền dự án"
+                                                        >
+                                                            <Briefcase className="w-4 h-4" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteStaff(staff.id, staff.username)}
+                                                            disabled={deleting === staff.id}
+                                                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors
+                                                                     disabled:opacity-50"
+                                                            title="Xóa tài khoản"
+                                                        >
+                                                            {deleting === staff.id ? (
+                                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                            ) : (
+                                                                <Trash2 className="w-4 h-4" />
+                                                            )}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                
+                                                {/* Expanded Project List */}
+                                                {isExpanded && hasAssignments && (
+                                                    <div className="px-3 pb-3 pt-0">
+                                                        <div className="bg-slate-50 rounded-lg p-2 space-y-1">
+                                                            {assignments.map((assignment) => (
+                                                                <div
+                                                                    key={assignment.project_id}
+                                                                    className="flex items-center gap-2 text-xs text-slate-600 py-1 px-2 bg-white rounded"
+                                                                >
+                                                                    <FolderKanban className="w-3 h-3 text-indigo-500 shrink-0" />
+                                                                    <span className="truncate">{assignment.project_name}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
-                                        </div>
-                                    ))}
+                                        )
+                                    })}
                                 </div>
                             )}
                         </div>
@@ -463,7 +586,11 @@ const StaffManagementModal = ({ isOpen, onClose }) => {
                 isOpen={!!assigningStaff}
                 staff={assigningStaff}
                 onClose={() => setAssigningStaff(null)}
-                onSaved={(msg) => setSuccess(msg)}
+                onSaved={(msg) => {
+                    setSuccess(msg)
+                    // Refresh assignments after save
+                    fetchStaffList(true)
+                }}
             />
         </>
     )

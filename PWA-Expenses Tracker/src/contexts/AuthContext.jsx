@@ -32,6 +32,7 @@ export const AuthProvider = ({ children }) => {
         }
     })
     const [loading, setLoading] = useState(true)
+    const [authReady, setAuthReady] = useState(false) // NEW: Session check completed flag
 
     // Refs để tránh duplicate fetch và infinite loop
     const isFetchingRef = useRef(false)
@@ -57,6 +58,44 @@ export const AuthProvider = ({ children }) => {
             }
         } catch (e) {
             console.error('Error caching profile:', e)
+        }
+    }
+
+    // Helper: Clear ALL app caches when logout to avoid conflicts when switching accounts
+    const clearAllAppCaches = () => {
+        const cacheKeys = [
+            'cached_profile',
+            'cached_user_role',
+            'projects_cache',
+            'categories_cache',
+            'expenses_cache',
+            'cached_staff_list',
+            'cached_staff_assignments',
+            'dashboard_stats_',
+            'feature_permission_'
+        ]
+        
+        try {
+            // Clear exact matches
+            cacheKeys.forEach(key => {
+                if (!key.endsWith('_')) {
+                    localStorage.removeItem(key)
+                }
+            })
+            
+            // Clear keys that start with prefix (like dashboard_stats_xxx)
+            const keysToRemove = []
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i)
+                if (key && cacheKeys.some(prefix => prefix.endsWith('_') && key.startsWith(prefix))) {
+                    keysToRemove.push(key)
+                }
+            }
+            keysToRemove.forEach(key => localStorage.removeItem(key))
+            
+            console.log('[AuthContext] Cleared all app caches')
+        } catch (e) {
+            console.error('Error clearing app caches:', e)
         }
     }
 
@@ -96,15 +135,10 @@ export const AuthProvider = ({ children }) => {
             }
         }
 
-        // === GUARD 2: Short debounce (2 giây) để tránh spam ===
-        if (lastUserIdRef.current === userId && now - lastFetchTimeRef.current < 2000 && !forceRefresh) {
-            console.log('[AuthContext] Debounce: Too soon since last fetch')
-            // Đảm bảo userRole có giá trị nếu skip
-            if (!userRoleRef.current) {
-                console.log('[AuthContext] Setting fallback role: owner (debounce)')
-                setUserRole('owner')
-            }
-            return
+        // === GUARD 2: Short debounce (5 giây) để tránh spam ===
+        if (lastUserIdRef.current === userId && now - lastFetchTimeRef.current < 5000 && !forceRefresh) {
+            console.log('[AuthContext] Debounce: Too soon since last fetch, skipping')
+            return // Don't set fallback role here, profile is already set
         }
 
         // === GUARD 3: Fetching lock (prevent concurrent) ===
@@ -129,6 +163,7 @@ export const AuthProvider = ({ children }) => {
         // Lock fetch để ngăn duplicate
         isFetchingRef.current = true
         lastUserIdRef.current = userId
+        lastFetchTimeRef.current = Date.now() // Set ngay để debounce hoạt động
 
         // Timeout sau 15 giây (tăng từ 10s -> 15s để tránh timeout mạng chậm)
         const controller = new AbortController()
@@ -204,6 +239,7 @@ export const AuthProvider = ({ children }) => {
 
             const determinedRole = data?.role || 'owner'
             console.log('[AuthContext] 🎯 Setting user role:', determinedRole)
+            setProfile(data)  // Set profile state với data từ DB (bao gồm parent_id cho staff)
             setUserRole(determinedRole)
             cacheProfile(data, determinedRole)
             lastFetchTimeRef.current = Date.now()
@@ -263,6 +299,7 @@ export const AuthProvider = ({ children }) => {
                 setUser(parsedUser)
                 setUserRole('owner') // Demo user is always owner
             }
+            setAuthReady(true) // NEW
             setLoading(false)
             return
         }
@@ -274,6 +311,7 @@ export const AuthProvider = ({ children }) => {
 
                 if (error) {
                     console.error('Error getting session:', error)
+                    setAuthReady(true) // NEW: Auth check completed (with error)
                     setLoading(false)
                     return
                 }
@@ -287,28 +325,68 @@ export const AuthProvider = ({ children }) => {
                 }
 
                 if (currentUser) {
-                    // Kiểm tra cache có hợp lệ không
-                    const cachedProfile = profile
-                    const hasCachedProfile = cachedProfile && cachedProfile.id === currentUser.id
-
-                    if (hasCachedProfile && userRole) {
-                        // Cache hợp lệ - set loading false ngay lập tức
-                        console.log('[AuthContext] Using cached profile, role:', userRole)
-                        setLoading(false)
-                    } else {
-                        // Không có cache - fetch profile
-                        await fetchProfile(currentUser.id)
-
-                        // Đảm bảo userRole có giá trị sau fetchProfile
-                        // (Trong trường hợp fetchProfile bị skip hoặc fail)
-                        if (!userRoleRef.current) {
-                            console.log('[AuthContext] userRole still null after fetchProfile, defaulting to owner')
-                            setUserRole('owner')
+                    // Kiểm tra cache có hợp lệ không (đọc trực tiếp từ localStorage)
+                    let cachedProfile = null
+                    let cachedRole = null
+                    try {
+                        const cachedProfileStr = localStorage.getItem('cached_profile')
+                        cachedRole = localStorage.getItem('cached_user_role')
+                        if (cachedProfileStr) {
+                            cachedProfile = JSON.parse(cachedProfileStr)
                         }
+                        console.log('[AuthContext] Cache check:', {
+                            hasCachedProfileStr: !!cachedProfileStr,
+                            cachedProfileId: cachedProfile?.id,
+                            currentUserId: currentUser.id,
+                            idsMatch: cachedProfile?.id === currentUser.id,
+                            cachedRole
+                        })
+                    } catch (e) {
+                        console.warn('[AuthContext] Error reading cache:', e)
                     }
+
+                    const hasCachedProfile = cachedProfile && cachedProfile.id === currentUser.id && cachedRole
+
+                    if (hasCachedProfile) {
+                        // Cache hợp lệ - sử dụng ngay, KHÔNG fetch
+                        console.log('[AuthContext] ✅ Using cached profile immediately, role:', cachedRole)
+                        setProfile(cachedProfile)
+                        setUserRole(cachedRole)
+                        userRoleRef.current = cachedRole // Set ref immediately to prevent duplicate fetches
+                        setAuthReady(true) // NEW
+                        setLoading(false)
+                        
+                        // Background refresh sau 2 giây (không block UI)
+                        setTimeout(() => {
+                            console.log('[AuthContext] 🔄 Background refresh starting...')
+                            fetchProfile(currentUser.id, { fromVisibilityChange: true })
+                        }, 2000)
+                    } else {
+                        // Không có cache - SET FALLBACK NGAY để không block UI
+                        console.log('[AuthContext] ⚡ No cache - using fallback role immediately, then background fetch')
+                        
+                        // Set fallback role ngay lập tức để UI có thể render
+                        const fallbackRole = cachedRole || 'owner'
+                        setUserRole(fallbackRole)
+                        userRoleRef.current = fallbackRole // Set ref immediately to prevent duplicate fetches
+                        setAuthReady(true) // NEW: Session check completed
+                        setLoading(false)  // ← QUAN TRỌNG: Không chờ fetch
+                        
+                        // Fetch profile trong background (không await)
+                        fetchProfile(currentUser.id).then(() => {
+                            console.log('[AuthContext] Background fetch completed')
+                        }).catch(err => {
+                            console.warn('[AuthContext] Background fetch failed:', err.message)
+                        })
+                    }
+                } else {
+                    // No user - clear loading
+                    setAuthReady(true) // NEW: Auth check completed (no user)
+                    setLoading(false)
                 }
             } catch (err) {
                 console.error('Error in getSession:', err)
+                setAuthReady(true) // NEW: Auth check completed (with error)
             } finally {
                 setLoading(false)
             }
@@ -316,10 +394,32 @@ export const AuthProvider = ({ children }) => {
 
         getSession()
 
-        // Safety timeout: nếu sau 5 giây vẫn loading, force set loading = false
+        // Safety timeout: nếu sau 10 giây vẫn loading và chưa có userRole, force set
         const safetyTimeout = setTimeout(() => {
-            setLoading(false)
-        }, 5000)
+            // Chỉ trigger nếu đang trong trạng thái loading thực sự và chưa có userRole
+            if (!userRoleRef.current) {
+                console.warn('[AuthContext] ⚠️ Safety timeout triggered - forcing loading to false')
+                setAuthReady(true) // NEW: Force auth ready
+                setLoading(false)
+                // Nếu có cached profile nhưng chưa set user, try to recover
+                const cachedProfile = localStorage.getItem('cached_profile')
+                if (cachedProfile) {
+                    try {
+                        const parsed = JSON.parse(cachedProfile)
+                        console.log('[AuthContext] Recovering user from cached profile:', parsed.id)
+                        const cachedRole = localStorage.getItem('cached_user_role') || 'owner'
+                        setUserRole(cachedRole)
+                    } catch (e) {
+                        console.error('[AuthContext] Failed to recover from cache:', e)
+                        // Set default role to avoid infinite loading
+                        setUserRole('owner')
+                    }
+                } else {
+                    // No cache, set default role
+                    setUserRole('owner')
+                }
+            }
+        }, 10000)
 
         // Listen for auth changes (chỉ handle SIGNED_IN và SIGNED_OUT)
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -332,6 +432,7 @@ export const AuthProvider = ({ children }) => {
 
                 const currentUser = session?.user ?? null
                 setUser(currentUser)
+                setAuthReady(true) // NEW: Always set authReady on auth state change
 
                 // Update cache
                 if (currentUser?.id) {
@@ -341,8 +442,21 @@ export const AuthProvider = ({ children }) => {
                 }
 
                 if (event === 'SIGNED_IN' && currentUser) {
-                    await fetchProfile(currentUser.id)
+                    // Only fetch if we don't have a valid profile yet
+                    if (!userRoleRef.current) {
+                        fetchProfile(currentUser.id)
+                    }
                 } else if (event === 'SIGNED_OUT') {
+                    // Clear all caches to avoid conflicts when switching accounts
+                    clearAllAppCaches()
+                    clearUserIdCache()
+                    
+                    // Reset all refs
+                    isFetchingRef.current = false
+                    lastFetchTimeRef.current = 0
+                    lastUserIdRef.current = null
+                    retryCountRef.current = 0
+                    
                     setProfile(null)
                     setUserRole(null)
                 }
@@ -452,6 +566,7 @@ export const AuthProvider = ({ children }) => {
                 user_metadata: { full_name: email.split('@')[0] }
             }
             localStorage.setItem('demo_user', JSON.stringify(demoUser))
+            sessionStorage.setItem('just_logged_in', 'true') // NEW: Flag for redirect
             setUser(demoUser)
             return { success: true }
         }
@@ -464,19 +579,26 @@ export const AuthProvider = ({ children }) => {
         if (error) {
             return { success: false, error: error.message }
         }
+        sessionStorage.setItem('just_logged_in', 'true') // NEW: Flag for redirect
         return { success: true, data }
     }
 
     // Sign out - optimized for faster UI response
     const signOut = async () => {
-        // Clear cached user ID ngay lập tức
+        // Clear all caches ngay lập tức để tránh xung đột khi login tài khoản khác
+        clearAllAppCaches()
         clearUserIdCache()
+        
+        // Reset refs
+        isFetchingRef.current = false
+        lastFetchTimeRef.current = 0
+        lastUserIdRef.current = null
+        retryCountRef.current = 0
 
-        // Clear state và cache ngay lập tức để UI phản hồi nhanh
+        // Clear state ngay lập tức để UI phản hồi nhanh
         setUser(null)
         setProfile(null)
         setUserRole(null)
-        cacheProfile(null, null)
 
         if (isDemoMode()) {
             localStorage.removeItem('demo_user')
@@ -501,9 +623,13 @@ export const AuthProvider = ({ children }) => {
                 user_metadata: { full_name: 'Demo Google User', avatar_url: '' }
             }
             localStorage.setItem('demo_user', JSON.stringify(demoUser))
+            sessionStorage.setItem('just_logged_in', 'true') // NEW: Flag for redirect
             setUser(demoUser)
             return { success: true }
         }
+
+        // Set flag trước khi redirect để sau khi OAuth callback sẽ redirect về Dashboard
+        sessionStorage.setItem('just_logged_in', 'true') // NEW: Flag for redirect
 
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
@@ -513,6 +639,7 @@ export const AuthProvider = ({ children }) => {
         })
 
         if (error) {
+            sessionStorage.removeItem('just_logged_in') // Remove flag on error
             return { success: false, error: error.message }
         }
         return { success: true }
@@ -558,6 +685,7 @@ export const AuthProvider = ({ children }) => {
         profile,
         userRole,
         loading,
+        authReady, // NEW: Expose for routing
         signUp,
         signIn,
         signOut,
@@ -565,7 +693,7 @@ export const AuthProvider = ({ children }) => {
         resetPasswordForEmail,
         updatePassword,
         isAuthenticated: !!user,
-        isOwner: userRole === 'owner',
+        isOwner: !userRole || userRole === 'owner', // Fallback to owner if null
         isStaff: userRole === 'staff',
         refetchProfile: () => fetchProfile(user?.id),
     }
@@ -576,3 +704,5 @@ export const AuthProvider = ({ children }) => {
         </AuthContext.Provider>
     )
 }
+
+export default AuthProvider

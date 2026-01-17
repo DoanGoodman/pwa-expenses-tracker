@@ -905,18 +905,27 @@ export const useDashboardStats = (startMonth, endMonth, projectId = null, userId
 
                 console.log('[useDashboardStats] Executing query...')
 
-                // Add timeout protection (20 seconds)
+                // Add timeout protection (15 seconds - reduced from 20s for faster feedback)
                 const controller = new AbortController()
                 const timeoutId = setTimeout(() => {
                     console.warn('[useDashboardStats] ⏰ Query timeout, aborting...')
                     controller.abort()
-                }, 20000)
+                    // Ensure loading is set to false on timeout
+                    setLoading(false)
+                }, 15000)
 
                 let expensesData, queryError
                 try {
                     const result = await query.abortSignal(controller.signal)
                     expensesData = result.data
                     queryError = result.error
+                } catch (abortErr) {
+                    if (abortErr.name === 'AbortError') {
+                        console.warn('[useDashboardStats] Query was aborted due to timeout')
+                        setLoading(false)
+                        return
+                    }
+                    throw abortErr
                 } finally {
                     clearTimeout(timeoutId)
                 }
