@@ -326,16 +326,36 @@ export const AuthProvider = ({ children }) => {
                 }
 
                 if (currentUser) {
-                    // Kiểm tra cache có hợp lệ không
-                    const cachedProfile = profile
-                    const hasCachedProfile = cachedProfile && cachedProfile.id === currentUser.id
+                    // Kiểm tra cache có hợp lệ không (đọc trực tiếp từ localStorage)
+                    let cachedProfile = null
+                    let cachedRole = null
+                    try {
+                        const cachedProfileStr = localStorage.getItem('cached_profile')
+                        cachedRole = localStorage.getItem('cached_user_role')
+                        if (cachedProfileStr) {
+                            cachedProfile = JSON.parse(cachedProfileStr)
+                        }
+                    } catch (e) {
+                        console.warn('[AuthContext] Error reading cache:', e)
+                    }
 
-                    if (hasCachedProfile && userRole) {
-                        // Cache hợp lệ - set loading false ngay lập tức
-                        console.log('[AuthContext] Using cached profile, role:', userRole)
+                    const hasCachedProfile = cachedProfile && cachedProfile.id === currentUser.id && cachedRole
+
+                    if (hasCachedProfile) {
+                        // Cache hợp lệ - sử dụng ngay, KHÔNG fetch
+                        console.log('[AuthContext] ✅ Using cached profile immediately, role:', cachedRole)
+                        setProfile(cachedProfile)
+                        setUserRole(cachedRole)
                         setLoading(false)
+                        
+                        // Background refresh sau 2 giây (không block UI)
+                        setTimeout(() => {
+                            console.log('[AuthContext] 🔄 Background refresh starting...')
+                            fetchProfile(currentUser.id, { fromVisibilityChange: true })
+                        }, 2000)
                     } else {
                         // Không có cache - fetch profile
+                        console.log('[AuthContext] No valid cache, fetching profile...')
                         await fetchProfile(currentUser.id)
 
                         // Đảm bảo userRole có giá trị sau fetchProfile
@@ -345,6 +365,9 @@ export const AuthProvider = ({ children }) => {
                             setUserRole('owner')
                         }
                     }
+                } else {
+                    // No user - clear loading
+                    setLoading(false)
                 }
             } catch (err) {
                 console.error('Error in getSession:', err)
