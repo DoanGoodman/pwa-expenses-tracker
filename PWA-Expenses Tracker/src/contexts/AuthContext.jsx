@@ -335,6 +335,13 @@ export const AuthProvider = ({ children }) => {
                         if (cachedProfileStr) {
                             cachedProfile = JSON.parse(cachedProfileStr)
                         }
+                        console.log('[AuthContext] Cache check:', {
+                            hasCachedProfileStr: !!cachedProfileStr,
+                            cachedProfileId: cachedProfile?.id,
+                            currentUserId: currentUser.id,
+                            idsMatch: cachedProfile?.id === currentUser.id,
+                            cachedRole
+                        })
                     } catch (e) {
                         console.warn('[AuthContext] Error reading cache:', e)
                     }
@@ -354,16 +361,20 @@ export const AuthProvider = ({ children }) => {
                             fetchProfile(currentUser.id, { fromVisibilityChange: true })
                         }, 2000)
                     } else {
-                        // Không có cache - fetch profile
-                        console.log('[AuthContext] No valid cache, fetching profile...')
-                        await fetchProfile(currentUser.id)
-
-                        // Đảm bảo userRole có giá trị sau fetchProfile
-                        // (Trong trường hợp fetchProfile bị skip hoặc fail)
-                        if (!userRoleRef.current) {
-                            console.log('[AuthContext] userRole still null after fetchProfile, defaulting to owner')
-                            setUserRole('owner')
-                        }
+                        // Không có cache - SET FALLBACK NGAY để không block UI
+                        console.log('[AuthContext] ⚡ No cache - using fallback role immediately, then background fetch')
+                        
+                        // Set fallback role ngay lập tức để UI có thể render
+                        const fallbackRole = cachedRole || 'owner'
+                        setUserRole(fallbackRole)
+                        setLoading(false)  // ← QUAN TRỌNG: Không chờ fetch
+                        
+                        // Fetch profile trong background (không await)
+                        fetchProfile(currentUser.id).then(() => {
+                            console.log('[AuthContext] Background fetch completed')
+                        }).catch(err => {
+                            console.warn('[AuthContext] Background fetch failed:', err.message)
+                        })
                     }
                 } else {
                     // No user - clear loading
