@@ -60,6 +60,45 @@ export const AuthProvider = ({ children }) => {
         }
     }
 
+    // Helper: Clear ALL app caches when logout to avoid conflicts when switching accounts
+    const clearAllAppCaches = () => {
+        const cacheKeys = [
+            'cached_profile',
+            'cached_user_role',
+            'projects_cache',
+            'categories_cache',
+            'expenses_cache',
+            'cached_staff_list',
+            'cached_staff_assignments',
+            'dashboard_stats_',
+            'feature_permission_'
+        ]
+        
+        try {
+            // Clear exact matches
+            cacheKeys.forEach(key => {
+                if (!key.endsWith('_')) {
+                    localStorage.removeItem(key)
+                }
+            })
+            
+            // Clear keys that start with prefix (like dashboard_stats_xxx)
+            const keysToRemove = []
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i)
+                if (key && cacheKeys.some(prefix => prefix.endsWith('_') && key.startsWith(prefix))) {
+                    keysToRemove.push(key)
+                }
+            }
+            keysToRemove.forEach(key => localStorage.removeItem(key))
+            
+            console.log('[AuthContext] Cleared all app caches')
+        } catch (e) {
+            console.error('Error clearing app caches:', e)
+        }
+    }
+    }
+
     /**
      * Fetch user profile với đầy đủ cơ chế bảo vệ:
      * - Fetching lock (prevent concurrent calls)
@@ -204,6 +243,7 @@ export const AuthProvider = ({ children }) => {
 
             const determinedRole = data?.role || 'owner'
             console.log('[AuthContext] 🎯 Setting user role:', determinedRole)
+            setProfile(data)  // Set profile state với data từ DB (bao gồm parent_id cho staff)
             setUserRole(determinedRole)
             cacheProfile(data, determinedRole)
             lastFetchTimeRef.current = Date.now()
@@ -361,6 +401,16 @@ export const AuthProvider = ({ children }) => {
                 if (event === 'SIGNED_IN' && currentUser) {
                     await fetchProfile(currentUser.id)
                 } else if (event === 'SIGNED_OUT') {
+                    // Clear all caches to avoid conflicts when switching accounts
+                    clearAllAppCaches()
+                    clearUserIdCache()
+                    
+                    // Reset all refs
+                    isFetchingRef.current = false
+                    lastFetchTimeRef.current = 0
+                    lastUserIdRef.current = null
+                    retryCountRef.current = 0
+                    
                     setProfile(null)
                     setUserRole(null)
                 }
@@ -487,14 +537,20 @@ export const AuthProvider = ({ children }) => {
 
     // Sign out - optimized for faster UI response
     const signOut = async () => {
-        // Clear cached user ID ngay lập tức
+        // Clear all caches ngay lập tức để tránh xung đột khi login tài khoản khác
+        clearAllAppCaches()
         clearUserIdCache()
+        
+        // Reset refs
+        isFetchingRef.current = false
+        lastFetchTimeRef.current = 0
+        lastUserIdRef.current = null
+        retryCountRef.current = 0
 
-        // Clear state và cache ngay lập tức để UI phản hồi nhanh
+        // Clear state ngay lập tức để UI phản hồi nhanh
         setUser(null)
         setProfile(null)
         setUserRole(null)
-        cacheProfile(null, null)
 
         if (isDemoMode()) {
             localStorage.removeItem('demo_user')
