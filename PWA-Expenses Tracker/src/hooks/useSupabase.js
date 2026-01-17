@@ -905,8 +905,21 @@ export const useDashboardStats = (startMonth, endMonth, projectId = null, userId
 
                 console.log('[useDashboardStats] Executing query...')
 
-                // Simple await - AbortController gây timeout giả khi tab bị hidden
-                const { data: expensesData, error: queryError } = await query
+                // Add timeout protection (20 seconds)
+                const controller = new AbortController()
+                const timeoutId = setTimeout(() => {
+                    console.warn('[useDashboardStats] ⏰ Query timeout, aborting...')
+                    controller.abort()
+                }, 20000)
+
+                let expensesData, queryError
+                try {
+                    const result = await query.abortSignal(controller.signal)
+                    expensesData = result.data
+                    queryError = result.error
+                } finally {
+                    clearTimeout(timeoutId)
+                }
 
                 console.log('[useDashboardStats] Query returned:', expensesData?.length, 'items')
 
