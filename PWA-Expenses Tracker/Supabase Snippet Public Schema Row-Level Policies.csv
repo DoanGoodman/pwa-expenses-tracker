@@ -1,0 +1,46 @@
+schemaname,tablename,policyname,permissive,roles,cmd,qual,with_check
+public,categories,Enable read access for all users,PERMISSIVE,{authenticated},SELECT,true,null
+public,daily_upload_counts,Users can insert own upload counts,PERMISSIVE,{public},INSERT,null,(owner_id = auth.uid())
+public,daily_upload_counts,Users can update own upload counts,PERMISSIVE,{public},UPDATE,(owner_id = auth.uid()),null
+public,daily_upload_counts,Users can view own upload counts,PERMISSIVE,{public},SELECT,(owner_id = auth.uid()),null
+public,expense_audit_logs,Users can read their own audit logs,PERMISSIVE,{public},SELECT,(changed_by = auth.uid()),null
+public,expenses,expenses_delete_policy,PERMISSIVE,{public},DELETE,"((user_id = auth.uid()) OR (EXISTS ( SELECT 1
+   FROM profiles
+  WHERE ((profiles.id = expenses.user_id) AND (profiles.parent_id = auth.uid())))))",null
+public,expenses,Owner and Creator can update expenses,PERMISSIVE,{public},UPDATE,"((user_id = auth.uid()) OR (project_id IN ( SELECT projects.id
+   FROM projects
+  WHERE (projects.user_id = auth.uid()))))",null
+public,expenses,Users can view related expenses,PERMISSIVE,{public},SELECT,"((user_id = auth.uid()) OR (project_id IN ( SELECT projects.id
+   FROM projects
+  WHERE (projects.user_id = auth.uid()))))",null
+public,expenses,Owner and Creator can delete expenses,PERMISSIVE,{public},DELETE,"((user_id = auth.uid()) OR (project_id IN ( SELECT projects.id
+   FROM projects
+  WHERE (projects.user_id = auth.uid()))))",null
+public,expenses,expenses_select_policy,PERMISSIVE,{public},SELECT,"((user_id = auth.uid()) OR (EXISTS ( SELECT 1
+   FROM profiles
+  WHERE ((profiles.id = expenses.user_id) AND (profiles.parent_id = auth.uid())))))",null
+public,expenses,expenses_insert_policy,PERMISSIVE,{public},INSERT,null,(user_id = auth.uid())
+public,expenses,expenses_update_policy,PERMISSIVE,{public},UPDATE,"((user_id = auth.uid()) OR (EXISTS ( SELECT 1
+   FROM profiles
+  WHERE ((profiles.id = expenses.user_id) AND (profiles.parent_id = auth.uid())))))",null
+public,feature_permissions,Users can request permissions,PERMISSIVE,{public},INSERT,null,(auth.uid() = user_id)
+public,feature_permissions,Users can view own permissions,PERMISSIVE,{public},SELECT,(auth.uid() = user_id),null
+public,feature_permissions,Users can view own and parent permissions,PERMISSIVE,{public},SELECT,"((user_id = auth.uid()) OR (user_id IN ( SELECT profiles.parent_id
+   FROM profiles
+  WHERE (profiles.id = auth.uid()))))",null
+public,profiles,Read accessible profiles,PERMISSIVE,{authenticated},SELECT,((id = auth.uid()) OR ((parent_id = auth.uid()) AND is_owner())),null
+public,profiles,Users can view own profile and staff profiles,PERMISSIVE,{public},SELECT,((auth.uid() = id) OR (parent_id = auth.uid())),null
+public,profiles,Users can update own profile,PERMISSIVE,{public},UPDATE,(auth.uid() = id),null
+public,profiles,Service role can insert profiles,PERMISSIVE,{public},INSERT,null,true
+public,profiles,Users can update own profiles,PERMISSIVE,{public},UPDATE,(id = auth.uid()),(id = auth.uid())
+public,profiles,Owner can update staff profiles,PERMISSIVE,{public},UPDATE,(parent_id = auth.uid()),true
+public,project_assignments,Owners manage all assignments,PERMISSIVE,{authenticated},ALL,is_owner(),is_owner()
+public,project_assignments,Staff view own assignments,PERMISSIVE,{authenticated},SELECT,(staff_id = auth.uid()),null
+public,projects,Enable insert for users based on user_id,PERMISSIVE,{public},INSERT,null,(( SELECT auth.uid() AS uid) = user_id)
+public,projects,Staff can view assigned projects,PERMISSIVE,{public},SELECT,"((user_id = auth.uid()) OR (id IN ( SELECT project_assignments.project_id
+   FROM project_assignments
+  WHERE (project_assignments.staff_id = auth.uid()))))",null
+public,projects,Users can manage own projects,PERMISSIVE,{public},ALL,(user_id = auth.uid()),(user_id = auth.uid())
+public,projects,Enable read access for user based on user_id,PERMISSIVE,{public},SELECT,(auth.uid() = user_id),null
+public,users,Allow insert for all users,PERMISSIVE,"{anon,authenticated}",INSERT,null,(auth.uid() = user_id)
+public,users,Enable insert for authenticated users only,PERMISSIVE,{authenticated},INSERT,null,(auth.uid() = user_id)
