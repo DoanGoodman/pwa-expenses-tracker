@@ -177,6 +177,8 @@ export const AuthProvider = ({ children }) => {
 
             // For Staff: Check if they still have a parent
             if (data?.role === 'staff') {
+                console.log('[AuthContext] Staff detected, checking parent status...')
+
                 if (!data?.parent_id) {
                     console.warn('Staff account has no parent, logging out...')
                     alert('Tài khoản của bạn đã bị xóa khỏi hệ thống. Vui lòng liên hệ quản trị viên.')
@@ -186,23 +188,34 @@ export const AuthProvider = ({ children }) => {
 
                 // Check if parent (owner) is also active using RPC function (bypasses RLS)
                 try {
-                    const { data: isActive, error: rpcError } = await supabase
-                        .rpc('check_parent_is_active')
+                    // Create a promise race to prevent RPC from hanging indefinitely
+                    const rpcPromise = supabase.rpc('check_parent_is_active')
+                    const timeoutPromise = new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('RPC_TIMEOUT')), 5000)
+                    )
 
-                    if (!rpcError && isActive === false) {
+                    const result = await Promise.race([rpcPromise, timeoutPromise])
+                    const { data: isActive, error: rpcError } = result || {}
+
+                    if (rpcError) throw rpcError
+
+                    if (isActive === false) {
                         console.warn('Parent account is disabled, logging out staff...')
                         alert('Tài khoản chủ sở hữu đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.')
                         await supabase.auth.signOut()
                         return
                     }
+                    console.log('[AuthContext] Parent status OK')
                 } catch (rpcErr) {
-                    // If function doesn't exist yet, skip check
-                    console.warn('check_parent_is_active RPC failed, skipping check:', rpcErr.message)
+                    // If function doesn't exist yet or times out, skip check
+                    console.warn(`check_parent_is_active warning: ${rpcErr.message || rpcErr}`)
                 }
             }
 
-            setUserRole(data?.role || 'owner')
-            cacheProfile(data, data?.role || 'owner')
+            const determinedRole = data?.role || 'owner'
+            console.log('[AuthContext] Setting user role:', determinedRole)
+            setUserRole(determinedRole)
+            cacheProfile(data, determinedRole)
 
         } catch (err) {
             clearTimeout(timeoutId)
