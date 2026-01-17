@@ -355,25 +355,28 @@ export const AuthProvider = ({ children }) => {
 
         getSession()
 
-        // Safety timeout: nếu sau 10 giây vẫn loading, force set loading = false và set default user từ cache
+        // Safety timeout: nếu sau 10 giây vẫn loading và chưa có userRole, force set
         const safetyTimeout = setTimeout(() => {
-            console.warn('[AuthContext] ⚠️ Safety timeout triggered - forcing loading to false')
-            setLoading(false)
-            // Nếu có cached profile nhưng chưa set user, try to recover
-            if (!user) {
+            // Chỉ trigger nếu đang trong trạng thái loading thực sự và chưa có userRole
+            if (!userRoleRef.current) {
+                console.warn('[AuthContext] ⚠️ Safety timeout triggered - forcing loading to false')
+                setLoading(false)
+                // Nếu có cached profile nhưng chưa set user, try to recover
                 const cachedProfile = localStorage.getItem('cached_profile')
                 if (cachedProfile) {
                     try {
                         const parsed = JSON.parse(cachedProfile)
                         console.log('[AuthContext] Recovering user from cached profile:', parsed.id)
-                        // Không set user vì cần actual session, nhưng đảm bảo userRole được set
-                        if (!userRoleRef.current) {
-                            const cachedRole = localStorage.getItem('cached_user_role') || 'owner'
-                            setUserRole(cachedRole)
-                        }
+                        const cachedRole = localStorage.getItem('cached_user_role') || 'owner'
+                        setUserRole(cachedRole)
                     } catch (e) {
                         console.error('[AuthContext] Failed to recover from cache:', e)
+                        // Set default role to avoid infinite loading
+                        setUserRole('owner')
                     }
+                } else {
+                    // No cache, set default role
+                    setUserRole('owner')
                 }
             }
         }, 10000)
@@ -398,6 +401,7 @@ export const AuthProvider = ({ children }) => {
                 }
 
                 if (event === 'SIGNED_IN' && currentUser) {
+                    setLoading(true)  // Set loading khi bắt đầu fetch
                     await fetchProfile(currentUser.id)
                 } else if (event === 'SIGNED_OUT') {
                     // Clear all caches to avoid conflicts when switching accounts
