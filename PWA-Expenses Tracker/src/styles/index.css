@@ -2480,6 +2480,7 @@ a.bottom-nav-item {
     left: 0;
     right: 0;
     padding: 16px;
+    padding-bottom: calc(16px + 70px + env(safe-area-inset-bottom, 0px));
     background: white;
     border-top: 1px solid #e2e8f0;
     margin-top: 16px;
