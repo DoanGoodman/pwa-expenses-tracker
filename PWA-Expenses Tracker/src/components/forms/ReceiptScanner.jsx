@@ -100,8 +100,18 @@ const ReceiptScanner = ({
                 throw new Error(analysisResult.error || 'Analysis failed')
             }
 
-            // Set extracted data - use AI-extracted date
-            setReceiptDate(analysisResult.data.date || new Date().toISOString().split('T')[0])
+            // Set extracted data
+            // If AI couldn't find date (null), use today's date as default
+            const extractedDate = analysisResult.data.date || new Date().toISOString().split('T')[0]
+            const dateAutoFilled = !analysisResult.data.date // Flag to show warning
+            
+            setReceiptDate(extractedDate)
+            
+            // Show warning if date was auto-filled
+            if (dateAutoFilled) {
+                setError('⚠️ Không tìm thấy ngày trên hóa đơn - đã tự động điền ngày hôm nay. Vui lòng kiểm tra và chỉnh sửa nếu cần.')
+            }
+            
             setItems(analysisResult.data.items.map(item => ({
                 ...item,
                 id: item.id || crypto.randomUUID()
@@ -298,7 +308,13 @@ const ReceiptScanner = ({
                         <input
                             type="date"
                             value={receiptDate}
-                            onChange={(e) => setReceiptDate(e.target.value)}
+                            onChange={(e) => {
+                                setReceiptDate(e.target.value)
+                                // Clear date warning when user manually changes date
+                                if (error?.startsWith('⚠️')) {
+                                    setError(null)
+                                }
+                            }}
                             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary"
                         />
                     </div>
@@ -329,9 +345,13 @@ const ReceiptScanner = ({
                     <span className="text-gray-400">▶</span>
                 </div>
 
-                {/* Error message - also in sticky area */}
+                {/* Error/Warning message - also in sticky area */}
                 {error && (
-                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm flex items-center gap-2">
+                    <div className={`mb-4 p-3 border rounded-xl text-sm flex items-center gap-2 ${
+                        error.startsWith('⚠️') 
+                            ? 'bg-yellow-50 border-yellow-200 text-yellow-700' 
+                            : 'bg-red-50 border-red-200 text-red-600'
+                    }`}>
                         <AlertCircle size={18} />
                         {error}
                     </div>
