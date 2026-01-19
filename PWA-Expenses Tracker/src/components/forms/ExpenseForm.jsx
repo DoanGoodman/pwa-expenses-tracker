@@ -191,10 +191,14 @@ const ExpenseForm = ({
                 initialData ? (
                     // EDIT MODE - Single item form
                     <form onSubmit={handleSubmit} className="expense-form-content">
-                        {/* Selection Summary Bar */}
+                        {/* Selection Summary Bar - Clickable to edit Project, Category, Date */}
                         <div
                             className="selection-summary-bar"
                             onClick={() => setShowSelectionSheet(true)}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => e.key === 'Enter' && setShowSelectionSheet(true)}
+                            aria-label="Nhấn để sửa dự án, danh mục và ngày"
                         >
                             <div className="summary-content">
                                 <div className="summary-title">

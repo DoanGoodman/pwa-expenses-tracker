@@ -141,14 +141,14 @@ const SelectionBottomSheet = ({
                         </div>
                     </>
                 )}
-            </div>
 
-            {/* Footer Actions */}
-            <div className="sheet-footer-actions">
-                <button className="btn-sheet-apply" onClick={handleApply}>
-                    <Check size={18} />
-                    <span>Áp dụng</span>
-                </button>
+                {/* Apply Button - Sticky at bottom */}
+                <div className="sheet-apply-container">
+                    <button className="btn-sheet-apply" onClick={handleApply}>
+                        <Check size={18} />
+                        <span>Áp dụng</span>
+                    </button>
+                </div>
             </div>
         </BottomSheet>
     )
