@@ -1392,16 +1392,16 @@ a.bottom-nav-item {
 .bottom-sheet-footer {
     flex-shrink: 0;
     padding: 16px 20px;
-    background: white;
-    border-top: 1px solid #f1f5f9;
+    background: #ffffff !important;
+    border-top: 1px solid #e2e8f0;
     padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
 }
 
 .bottom-sheet-footer .btn-sheet-apply {
     width: 100%;
     padding: 14px;
-    background: var(--color-primary);
-    color: white;
+    background: var(--color-primary) !important;
+    color: white !important;
     border: none;
     border-radius: 50px;
     font-size: 1rem;
@@ -1412,6 +1412,7 @@ a.bottom-nav-item {
     gap: 8px;
     box-shadow: 0 4px 6px -1px rgba(0, 169, 157, 0.2);
     transition: all 0.2s;
+    cursor: pointer;
 }
 
 .bottom-sheet-footer .btn-sheet-apply:active {
@@ -2470,7 +2471,7 @@ a.bottom-nav-item {
 
 /* ===== SELECTION BOTTOM SHEET ===== */
 .selection-sheet-content {
-    padding-bottom: 80px;
+    padding-bottom: 16px;
 }
 
 .sheet-section {
