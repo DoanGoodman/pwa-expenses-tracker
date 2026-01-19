@@ -51,12 +51,6 @@ const SelectionBottomSheet = ({
             onClose={onClose}
             title="Thông tin chi phí"
             maxHeight="85vh"
-            footer={
-                <button className="btn-sheet-apply" onClick={handleApply}>
-                    <Check size={18} />
-                    <span>Áp dụng</span>
-                </button>
-            }
         >
             <div className="selection-sheet-content">
 
@@ -147,6 +141,14 @@ const SelectionBottomSheet = ({
                         </div>
                     </>
                 )}
+
+                {/* Apply Button - Sticky at bottom */}
+                <div className="sheet-apply-container">
+                    <button className="btn-sheet-apply" onClick={handleApply}>
+                        <Check size={18} />
+                        <span>Áp dụng</span>
+                    </button>
+                </div>
             </div>
         </BottomSheet>
     )

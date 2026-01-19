@@ -9,7 +9,6 @@ import { X } from 'lucide-react'
  * @param {function} onClose - Callback khi đóng
  * @param {string} title - Tiêu đề Bottom Sheet
  * @param {React.ReactNode} children - Nội dung bên trong
- * @param {React.ReactNode} footer - Footer bên ngoài scrollable area
  * @param {string} maxHeight - Chiều cao tối đa (default: 80vh)
  */
 const BottomSheet = ({
@@ -17,7 +16,6 @@ const BottomSheet = ({
     onClose,
     title,
     children,
-    footer,
     maxHeight = '80vh'
 }) => {
     const sheetRef = useRef(null)
@@ -109,13 +107,6 @@ const BottomSheet = ({
                 <div className="bottom-sheet-content">
                     {children}
                 </div>
-
-                {/* Footer (outside scrollable area) */}
-                {footer && (
-                    <div className="bottom-sheet-footer">
-                        {footer}
-                    </div>
-                )}
             </div>
         </div>
     )
