@@ -174,10 +174,14 @@ export const analyzeReceipt = async (imageUrl) => {
         }
 
         const data = await response.json()
+        
+        // Validate and handle missing date from AI
+        const extractedDate = data.date && data.date !== 'null' ? data.date : null
+        
         return {
             success: true,
             data: {
-                date: data.date || new Date().toISOString().split('T')[0],
+                date: extractedDate, // Keep null if AI couldn't find date
                 items: data.items || []
             }
         }
