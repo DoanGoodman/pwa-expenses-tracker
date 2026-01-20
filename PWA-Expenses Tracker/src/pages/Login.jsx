@@ -56,7 +56,9 @@ const Login = () => {
                     loginEmail = `${username.toLowerCase()}@qswings.app`
                 }
 
-                const result = await signIn(loginEmail, password)
+                // Pass rememberMe flag (only for Owner login, Staff always remember)
+                const shouldRemember = isStaffLogin ? true : rememberMe
+                const result = await signIn(loginEmail, password, shouldRemember)
                 if (!result.success) {
                     setError(result.error || 'Có lỗi xảy ra')
                     return

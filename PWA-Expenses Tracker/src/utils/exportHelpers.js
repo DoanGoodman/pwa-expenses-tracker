@@ -168,22 +168,7 @@ export const exportToExcel = async (expenses, fileName = 'Danh_sach_chi_phi') =>
             type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         })
 
-        // Check if Web Share API is available (works well on iOS)
-        if (navigator.share && navigator.canShare) {
-            const file = new File([blob], `${fileName}.xlsx`, {
-                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            })
-
-            if (navigator.canShare({ files: [file] })) {
-                await navigator.share({
-                    files: [file],
-                    title: 'Xuất danh sách chi phí',
-                })
-                return true
-            }
-        }
-
-        // Fallback: Create download link
+        // Fallback: Create download link (more reliable than Web Share API)
         const url = URL.createObjectURL(blob)
         const link = document.createElement('a')
         link.href = url
@@ -192,6 +177,28 @@ export const exportToExcel = async (expenses, fileName = 'Danh_sach_chi_phi') =>
         // For iOS Safari, we need to open in same window
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
         if (isIOS) {
+            // Try Web Share API first on iOS (works better for sharing files)
+            try {
+                if (navigator.share && navigator.canShare) {
+                    const file = new File([blob], `${fileName}.xlsx`, {
+                        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                    })
+
+                    if (navigator.canShare({ files: [file] })) {
+                        await navigator.share({
+                            files: [file],
+                            title: 'Xuất danh sách chi phí',
+                        })
+                        URL.revokeObjectURL(url)
+                        return true
+                    }
+                }
+            } catch (shareError) {
+                // If share fails (e.g., Permission denied, user cancelled), fall through to download
+                console.warn('Web Share failed, falling back to download:', shareError.message)
+            }
+            
+            // Fallback for iOS: open blob URL
             window.open(url, '_blank')
             alert('File Excel đã mở. Nhấn giữ và chọn "Tải về" hoặc "Mở trong Numbers" để lưu.')
         } else {
