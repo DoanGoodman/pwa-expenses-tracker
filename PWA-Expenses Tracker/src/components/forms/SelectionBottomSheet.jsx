@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Search, MapPin, X, Calendar, Check } from 'lucide-react'
 import BottomSheet from '../common/BottomSheet'
+import DatePicker from '../common/DatePicker'
 import { formatDateVN } from '../../utils/formatters'
 import { CategoryIconComponent, getCategoryIconColor } from '../../utils/categoryIcons'
 
@@ -132,11 +133,10 @@ const SelectionBottomSheet = ({
                                 <span className="section-title">Ngày chi</span>
                             </div>
 
-                            <input
-                                type="date"
+                            <DatePicker
                                 value={date}
-                                onChange={(e) => setDate(e.target.value)}
-                                className="date-picker-input-large"
+                                onChange={(newDate) => setDate(newDate)}
+                                placeholder="Chọn ngày chi"
                             />
                         </div>
                     </>
