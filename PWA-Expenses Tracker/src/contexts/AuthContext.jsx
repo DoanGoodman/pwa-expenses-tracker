@@ -317,6 +317,32 @@ export const AuthProvider = ({ children }) => {
                 }
 
                 const currentUser = session?.user ?? null
+                
+                // Check "Remember Me" logic:
+                // If user logged in without "remember me" (qswings_session_only was set),
+                // and there's no qswings_session_only in sessionStorage now (browser was closed),
+                // AND there's no qswings_remember_me flag, then auto logout
+                if (currentUser) {
+                    const rememberMe = localStorage.getItem('qswings_remember_me')
+                    const sessionOnly = sessionStorage.getItem('qswings_session_only')
+                    
+                    // If not remembered AND sessionStorage flag is gone (browser was restarted)
+                    // This means user logged in without "remember me" and closed browser
+                    if (!rememberMe && !sessionOnly) {
+                        // Check if there's a cached profile (indicates previous login)
+                        const cachedProfile = localStorage.getItem('cached_profile')
+                        if (cachedProfile) {
+                            // Had previous session without remember me - logout
+                            console.log('[AuthContext] Session-only login detected after browser restart - logging out')
+                            await supabase.auth.signOut()
+                            clearAllAppCaches()
+                            setAuthReady(true)
+                            setLoading(false)
+                            return
+                        }
+                    }
+                }
+                
                 setUser(currentUser)
 
                 // Set cache cho hooks sử dụng
@@ -558,7 +584,9 @@ export const AuthProvider = ({ children }) => {
     }
 
     // Sign in with email
-    const signIn = async (email, password) => {
+    // rememberMe = true: Keep logged in after browser closes
+    // rememberMe = false: Auto logout when browser closes (using session flag)
+    const signIn = async (email, password, rememberMe = true) => {
         if (isDemoMode()) {
             const demoUser = {
                 id: 'demo-user-' + Date.now(),
@@ -579,8 +607,20 @@ export const AuthProvider = ({ children }) => {
         if (error) {
             return { success: false, error: error.message }
         }
+        
+        // Store remember me preference
+        // If rememberMe is false, we set a session flag that will trigger logout on browser close
+        if (rememberMe) {
+            localStorage.setItem('qswings_remember_me', 'true')
+            sessionStorage.removeItem('qswings_session_only')
+        } else {
+            localStorage.removeItem('qswings_remember_me')
+            // Mark this as a session-only login (will be cleared when browser closes)
+            sessionStorage.setItem('qswings_session_only', 'true')
+        }
+        
         sessionStorage.setItem('just_logged_in', 'true') // NEW: Flag for redirect
-        return { success: true, data }
+        return { success: true, data, user: data?.user }
     }
 
     // Sign out - optimized for faster UI response
@@ -588,6 +628,10 @@ export const AuthProvider = ({ children }) => {
         // Clear all caches ngay lập tức để tránh xung đột khi login tài khoản khác
         clearAllAppCaches()
         clearUserIdCache()
+        
+        // Clear remember me flags
+        localStorage.removeItem('qswings_remember_me')
+        sessionStorage.removeItem('qswings_session_only')
         
         // Reset refs
         isFetchingRef.current = false
