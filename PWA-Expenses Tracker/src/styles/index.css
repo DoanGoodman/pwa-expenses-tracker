@@ -2818,6 +2818,10 @@ a.bottom-nav-item {
 }
 
 /* Calendar Dropdown */
+.date-picker-overlay {
+    display: none;
+}
+
 .date-picker-dropdown {
     position: absolute;
     top: calc(100% + 8px);
@@ -2829,6 +2833,11 @@ a.bottom-nav-item {
     z-index: 9999;
     overflow: visible;
     animation: datePickerFadeIn 0.2s ease;
+}
+
+/* Drag handle - hidden on desktop */
+.date-picker-handle {
+    display: none;
 }
 
 @keyframes datePickerFadeIn {
@@ -3047,6 +3056,23 @@ a.bottom-nav-item {
 
 /* Mobile Responsive */
 @media (max-width: 480px) {
+    .date-picker-overlay {
+        display: block;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 9998;
+        animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
     .date-picker-dropdown {
         position: fixed;
         top: auto;
@@ -3054,9 +3080,10 @@ a.bottom-nav-item {
         left: 0;
         right: 0;
         border-radius: 20px 20px 0 0;
-        max-height: 85vh;
+        max-height: 80vh;
         animation: datePickerSlideUp 0.3s ease;
         overflow-y: auto;
+        z-index: 9999;
     }
 
     @keyframes datePickerSlideUp {
@@ -3070,10 +3097,27 @@ a.bottom-nav-item {
         }
     }
 
+    /* Drag handle for mobile */
+    .date-picker-handle {
+        display: flex;
+        justify-content: center;
+        padding: 12px 0 8px;
+        background: #fff;
+        border-radius: 20px 20px 0 0;
+    }
+
+    .date-picker-handle-bar {
+        width: 36px;
+        height: 4px;
+        background: #d1d5db;
+        border-radius: 2px;
+    }
+
     .date-picker-quick-actions {
-        padding: 16px;
+        padding: 12px 16px 16px;
         gap: 10px;
-        padding-bottom: 12px;
+        background: #fff;
+        border-bottom: 1px solid #e2e8f0;
     }
 
     .quick-action-chip {
@@ -3088,11 +3132,11 @@ a.bottom-nav-item {
 
     .date-picker-grid {
         padding: 12px;
-        padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+        padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
     }
 
     .date-picker-year-grid {
         max-height: 250px;
-        padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+        padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
     }
 }

@@ -180,40 +180,55 @@ const DatePicker = ({
                 </span>
             </button>
 
-            {/* Calendar Dropdown */}
+            {/* Calendar Dropdown with Overlay for mobile */}
             {isOpen && (
-                <div className="date-picker-dropdown">
-                    {/* Quick Selection Buttons - Always visible at top */}
-                    <div className="date-picker-quick-actions">
-                        <button
-                            type="button"
-                            className={`quick-action-chip ${value === todayStr ? 'active' : ''}`}
-                            onClick={() => handleQuickSelect(todayStr)}
-                        >
-                            Hôm nay
-                        </button>
-                        <button
-                            type="button"
-                            className={`quick-action-chip ${value === yesterdayStr ? 'active' : ''}`}
-                            onClick={() => handleQuickSelect(yesterdayStr)}
-                        >
-                            Hôm qua
-                        </button>
-                        <button
-                            type="button"
-                            className={`quick-action-chip ${value === lastMonthStr ? 'active' : ''}`}
-                            onClick={() => handleQuickSelect(lastMonthStr)}
-                        >
-                            Tháng trước
-                        </button>
-                        <button
-                            type="button"
-                            className={`quick-action-chip ${value === lastYearStr ? 'active' : ''}`}
-                            onClick={() => handleQuickSelect(lastYearStr)}
-                        >
-                            Năm trước
-                        </button>
-                    </div>
+                <>
+                    {/* Backdrop overlay for mobile */}
+                    <div 
+                        className="date-picker-overlay" 
+                        onClick={() => {
+                            setIsOpen(false)
+                            setShowYearPicker(false)
+                        }}
+                    />
+                    
+                    <div className="date-picker-dropdown">
+                        {/* Drag handle for mobile */}
+                        <div className="date-picker-handle">
+                            <div className="date-picker-handle-bar"></div>
+                        </div>
+                        
+                        {/* Quick Selection Buttons - Always visible at top */}
+                        <div className="date-picker-quick-actions">
+                            <button
+                                type="button"
+                                className={`quick-action-chip ${value === todayStr ? 'active' : ''}`}
+                                onClick={() => handleQuickSelect(todayStr)}
+                            >
+                                Hôm nay
+                            </button>
+                            <button
+                                type="button"
+                                className={`quick-action-chip ${value === yesterdayStr ? 'active' : ''}`}
+                                onClick={() => handleQuickSelect(yesterdayStr)}
+                            >
+                                Hôm qua
+                            </button>
+                            <button
+                                type="button"
+                                className={`quick-action-chip ${value === lastMonthStr ? 'active' : ''}`}
+                                onClick={() => handleQuickSelect(lastMonthStr)}
+                            >
+                                Tháng trước
+                            </button>
+                            <button
+                                type="button"
+                                className={`quick-action-chip ${value === lastYearStr ? 'active' : ''}`}
+                                onClick={() => handleQuickSelect(lastYearStr)}
+                            >
+                                Năm trước
+                            </button>
+                        </div>
 
                     {/* Header with Month/Year Navigation */}
                     <div className="date-picker-header">
@@ -289,7 +304,8 @@ const DatePicker = ({
                             </div>
                         </>
                     )}
-                </div>
+                    </div>
+                </>
             )}
         </div>
     )
