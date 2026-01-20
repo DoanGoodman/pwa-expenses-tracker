@@ -3101,21 +3101,26 @@ a.bottom-nav-item {
     .date-picker-handle {
         display: flex;
         justify-content: center;
-        padding: 12px 0 8px;
+        padding: 14px 0 10px;
         background: #fff;
         border-radius: 20px 20px 0 0;
+        position: sticky;
+        top: 0;
+        z-index: 10;
     }
 
     .date-picker-handle-bar {
-        width: 36px;
-        height: 4px;
+        width: 40px;
+        height: 5px;
         background: #d1d5db;
-        border-radius: 2px;
+        border-radius: 3px;
     }
 
     .date-picker-quick-actions {
-        padding: 12px 16px 16px;
-        gap: 10px;
+        display: flex;
+        justify-content: center;
+        padding: 8px 16px 16px;
+        gap: 12px;
         background: #fff;
         border-bottom: 1px solid #e2e8f0;
     }

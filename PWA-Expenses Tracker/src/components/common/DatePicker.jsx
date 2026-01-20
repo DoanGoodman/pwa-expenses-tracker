@@ -221,13 +221,6 @@ const DatePicker = ({
                             >
                                 Tháng trước
                             </button>
-                            <button
-                                type="button"
-                                className={`quick-action-chip ${value === lastYearStr ? 'active' : ''}`}
-                                onClick={() => handleQuickSelect(lastYearStr)}
-                            >
-                                Năm trước
-                            </button>
                         </div>
 
                     {/* Header with Month/Year Navigation */}
