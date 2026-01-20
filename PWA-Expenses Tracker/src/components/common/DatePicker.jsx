@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Calendar, ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { Calendar, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
 import { formatDateVN } from '../../utils/formatters'
 
 const DAYS_VI = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
@@ -9,7 +9,7 @@ const MONTHS_VI = [
 ]
 
 /**
- * Custom DatePicker component with "Today" button
+ * Custom DatePicker component with quick selection buttons
  * Provides consistent UI across desktop and mobile
  */
 const DatePicker = ({
@@ -19,6 +19,7 @@ const DatePicker = ({
     className = ''
 }) => {
     const [isOpen, setIsOpen] = useState(false)
+    const [showYearPicker, setShowYearPicker] = useState(false)
     const [viewDate, setViewDate] = useState(() => {
         if (value) {
             return new Date(value + 'T00:00:00')
@@ -26,14 +27,30 @@ const DatePicker = ({
         return new Date()
     })
     const containerRef = useRef(null)
-    const calendarRef = useRef(null)
-
-    // Parse selected date
-    const selectedDate = value ? new Date(value + 'T00:00:00') : null
 
     // Get today's date for comparison
     const today = new Date()
     const todayStr = today.toISOString().split('T')[0]
+
+    // Calculate quick dates
+    const yesterday = new Date(today)
+    yesterday.setDate(today.getDate() - 1)
+    const yesterdayStr = yesterday.toISOString().split('T')[0]
+
+    const lastMonth = new Date(today)
+    lastMonth.setMonth(today.getMonth() - 1)
+    const lastMonthStr = lastMonth.toISOString().split('T')[0]
+
+    const lastYear = new Date(today)
+    lastYear.setFullYear(today.getFullYear() - 1)
+    const lastYearStr = lastYear.toISOString().split('T')[0]
+
+    // Generate year options (10 years back, 1 year forward)
+    const currentYear = today.getFullYear()
+    const yearOptions = []
+    for (let y = currentYear + 1; y >= currentYear - 10; y--) {
+        yearOptions.push(y)
+    }
 
     // Update viewDate when value changes externally
     useEffect(() => {
@@ -47,6 +64,7 @@ const DatePicker = ({
         const handleClickOutside = (event) => {
             if (containerRef.current && !containerRef.current.contains(event.target)) {
                 setIsOpen(false)
+                setShowYearPicker(false)
             }
         }
 
@@ -112,14 +130,10 @@ const DatePicker = ({
         setIsOpen(false)
     }
 
-    const handleTodayClick = () => {
-        onChange(todayStr)
-        setViewDate(new Date())
-        setIsOpen(false)
-    }
-
-    const handleClearClick = () => {
-        onChange('')
+    const handleQuickSelect = (dateStr) => {
+        onChange(dateStr)
+        const newDate = new Date(dateStr + 'T00:00:00')
+        setViewDate(newDate)
         setIsOpen(false)
     }
 
@@ -131,12 +145,21 @@ const DatePicker = ({
         })
     }
 
+    const handleYearSelect = (year) => {
+        setViewDate(prev => {
+            const newDate = new Date(prev)
+            newDate.setFullYear(year)
+            return newDate
+        })
+        setShowYearPicker(false)
+    }
+
     const isToday = (dateObj) => {
         return dateObj.date.toISOString().split('T')[0] === todayStr
     }
 
     const isSelected = (dateObj) => {
-        if (!selectedDate) return false
+        if (!value) return false
         return dateObj.date.toISOString().split('T')[0] === value
     }
 
@@ -159,7 +182,39 @@ const DatePicker = ({
 
             {/* Calendar Dropdown */}
             {isOpen && (
-                <div className="date-picker-dropdown" ref={calendarRef}>
+                <div className="date-picker-dropdown">
+                    {/* Quick Selection Buttons - Always visible at top */}
+                    <div className="date-picker-quick-actions">
+                        <button
+                            type="button"
+                            className={`quick-action-chip ${value === todayStr ? 'active' : ''}`}
+                            onClick={() => handleQuickSelect(todayStr)}
+                        >
+                            Hôm nay
+                        </button>
+                        <button
+                            type="button"
+                            className={`quick-action-chip ${value === yesterdayStr ? 'active' : ''}`}
+                            onClick={() => handleQuickSelect(yesterdayStr)}
+                        >
+                            Hôm qua
+                        </button>
+                        <button
+                            type="button"
+                            className={`quick-action-chip ${value === lastMonthStr ? 'active' : ''}`}
+                            onClick={() => handleQuickSelect(lastMonthStr)}
+                        >
+                            Tháng trước
+                        </button>
+                        <button
+                            type="button"
+                            className={`quick-action-chip ${value === lastYearStr ? 'active' : ''}`}
+                            onClick={() => handleQuickSelect(lastYearStr)}
+                        >
+                            Năm trước
+                        </button>
+                    </div>
+
                     {/* Header with Month/Year Navigation */}
                     <div className="date-picker-header">
                         <button
@@ -170,9 +225,17 @@ const DatePicker = ({
                         >
                             <ChevronLeft size={20} />
                         </button>
-                        <span className="date-picker-month-year">
-                            {MONTHS_VI[viewDate.getMonth()]} {viewDate.getFullYear()}
-                        </span>
+                        
+                        {/* Month/Year - Click to select year */}
+                        <button
+                            type="button"
+                            className="date-picker-month-year-btn"
+                            onClick={() => setShowYearPicker(!showYearPicker)}
+                        >
+                            <span>{MONTHS_VI[viewDate.getMonth()]} {viewDate.getFullYear()}</span>
+                            <ChevronDown size={16} className={`year-chevron ${showYearPicker ? 'open' : ''}`} />
+                        </button>
+                        
                         <button
                             type="button"
                             className="date-picker-nav-btn"
@@ -183,49 +246,49 @@ const DatePicker = ({
                         </button>
                     </div>
 
+                    {/* Year Picker Dropdown */}
+                    {showYearPicker && (
+                        <div className="date-picker-year-grid">
+                            {yearOptions.map(year => (
+                                <button
+                                    key={year}
+                                    type="button"
+                                    className={`year-option ${year === viewDate.getFullYear() ? 'selected' : ''} ${year === currentYear ? 'current' : ''}`}
+                                    onClick={() => handleYearSelect(year)}
+                                >
+                                    {year}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
                     {/* Day Names */}
-                    <div className="date-picker-weekdays">
-                        {DAYS_VI.map(day => (
-                            <div key={day} className="date-picker-weekday">{day}</div>
-                        ))}
-                    </div>
+                    {!showYearPicker && (
+                        <>
+                            <div className="date-picker-weekdays">
+                                {DAYS_VI.map(day => (
+                                    <div key={day} className="date-picker-weekday">{day}</div>
+                                ))}
+                            </div>
 
-                    {/* Calendar Grid */}
-                    <div className="date-picker-grid">
-                        {calendarDays.map((dayObj, index) => (
-                            <button
-                                key={index}
-                                type="button"
-                                className={`date-picker-day ${!dayObj.currentMonth ? 'other-month' : ''
-                                    } ${isToday(dayObj) ? 'today' : ''
-                                    } ${isSelected(dayObj) ? 'selected' : ''
-                                    }`}
-                                onClick={() => handleDateSelect(dayObj)}
-                            >
-                                {dayObj.day}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Footer with Quick Actions */}
-                    <div className="date-picker-footer">
-                        <button
-                            type="button"
-                            className="date-picker-action-btn clear"
-                            onClick={handleClearClick}
-                        >
-                            <X size={16} />
-                            Xóa
-                        </button>
-                        <button
-                            type="button"
-                            className="date-picker-action-btn today"
-                            onClick={handleTodayClick}
-                        >
-                            <Calendar size={16} />
-                            Hôm nay
-                        </button>
-                    </div>
+                            {/* Calendar Grid */}
+                            <div className="date-picker-grid">
+                                {calendarDays.map((dayObj, index) => (
+                                    <button
+                                        key={index}
+                                        type="button"
+                                        className={`date-picker-day ${!dayObj.currentMonth ? 'other-month' : ''
+                                            } ${isToday(dayObj) ? 'today' : ''
+                                            } ${isSelected(dayObj) ? 'selected' : ''
+                                            }`}
+                                        onClick={() => handleDateSelect(dayObj)}
+                                    >
+                                        {dayObj.day}
+                                    </button>
+                                ))}
+                            </div>
+                        </>
+                    )}
                 </div>
             )}
         </div>
